@@ -29,22 +29,43 @@ export async function GET() {
       count: number;
     }
     
-    interface VoteWithCandidate {
+    interface CandidatePartial {
+      id: string;
+      name: string;
+      position: string;
+    }
+    
+    interface VoteRow {
       candidate_id: string;
-      candidates: Candidate | null;
+      candidates: CandidatePartial | CandidatePartial[] | null;
     }
     
     const voteCounts: Record<string, VoteCount> = {};
     
-    votes?.forEach((vote: VoteWithCandidate) => {
+    votes?.forEach((vote: VoteRow) => {
       const candidateId = vote.candidate_id;
-      if (!voteCounts[candidateId]) {
+      // Handle both array and single candidate responses from Supabase
+      const candidatePartial = Array.isArray(vote.candidates) 
+        ? vote.candidates[0] 
+        : vote.candidates;
+      
+      if (candidatePartial && !voteCounts[candidateId]) {
+        // Convert partial candidate to full Candidate type
+        const candidate: Candidate = {
+          id: candidatePartial.id,
+          name: candidatePartial.name,
+          position: candidatePartial.position,
+          created_at: '', // Not needed for results
+          updated_at: '', // Not needed for results
+        };
         voteCounts[candidateId] = {
-          candidate: vote.candidates,
+          candidate: candidate,
           count: 0,
         };
       }
-      voteCounts[candidateId].count++;
+      if (voteCounts[candidateId]) {
+        voteCounts[candidateId].count++;
+      }
     });
 
     // Get total voters and voted count
