@@ -35,6 +35,9 @@ export default function AdminPage() {
   const [voters, setVoters] = useState<Voter[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [syncMessage, setSyncMessage] = useState('');
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvMessage, setCsvMessage] = useState('');
 
   const fetchResults = async () => {
     setLoading(true);
@@ -98,6 +101,79 @@ export default function AdminPage() {
       setSyncMessage('✗ Sync failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const parseCSV = (text: string): any[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length < 2) return [];
+
+    // Parse header
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    
+    // Find column indices
+    const electionCodeIdx = headers.findIndex(h => h === 'election_code' || h === 'electioncode' || h === 'code');
+    const firstNameIdx = headers.findIndex(h => h === 'first_name' || h === 'firstname' || h === 'first');
+    const lastNameIdx = headers.findIndex(h => h === 'last_name' || h === 'lastname' || h === 'last');
+
+    if (electionCodeIdx === -1 || firstNameIdx === -1) {
+      throw new Error('CSV must have election_code and first_name columns');
+    }
+
+    // Parse rows
+    const voters: any[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      if (values[electionCodeIdx] && values[firstNameIdx]) {
+        voters.push({
+          election_code: values[electionCodeIdx],
+          first_name: values[firstNameIdx],
+          last_name: lastNameIdx !== -1 ? values[lastNameIdx] : null,
+        });
+      }
+    }
+
+    return voters;
+  };
+
+  const handleCSVUpload = async () => {
+    if (!csvFile) {
+      setCsvMessage('✗ Please select a CSV file');
+      return;
+    }
+
+    setCsvUploading(true);
+    setCsvMessage('');
+
+    try {
+      const text = await csvFile.text();
+      const voters = parseCSV(text);
+
+      if (voters.length === 0) {
+        setCsvMessage('✗ No valid voters found in CSV file');
+        setCsvUploading(false);
+        return;
+      }
+
+      const res = await fetch('/api/admin/upload-voters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voters }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setCsvMessage(`✓ ${data.message}`);
+        setCsvFile(null);
+        fetchVoters();
+      } else {
+        setCsvMessage(`✗ Error: ${data.error}${data.errors ? '\n' + data.errors.join('\n') : ''}`);
+      }
+    } catch (error) {
+      setCsvMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to process CSV'}`);
+    } finally {
+      setCsvUploading(false);
     }
   };
 
@@ -291,23 +367,92 @@ export default function AdminPage() {
 
           {/* Sync Tab */}
           {activeTab === 'sync' && (
-            <div>
-              <div className="max-w-md">
-                <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  Sync voter data from Google Sheets to Supabase database.
-                </p>
-                <button
-                  onClick={handleSync}
-                  disabled={loading}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? 'Syncing...' : 'Sync from Google Sheets'}
-                </button>
-                {syncMessage && (
-                  <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <p className="text-sm">{syncMessage}</p>
+            <div className="space-y-8">
+              {/* CSV Upload Section */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Upload Voters via CSV
+                </h2>
+                <div className="max-w-2xl">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Upload a CSV file with voter data. Required columns: <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">election_code</code>, <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">first_name</code> (optional: <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">last_name</code>)
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        CSV File
+                      </label>
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                        className="block w-full text-sm text-gray-500 dark:text-gray-400
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-lg file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-indigo-50 file:text-indigo-700
+                          hover:file:bg-indigo-100
+                          dark:file:bg-indigo-900/20 dark:file:text-indigo-300"
+                      />
+                    </div>
+                    <button
+                      onClick={handleCSVUpload}
+                      disabled={csvUploading || !csvFile}
+                      className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {csvUploading ? 'Uploading...' : 'Upload CSV'}
+                    </button>
+                    {csvMessage && (
+                      <div className={`mt-4 p-4 rounded-lg whitespace-pre-wrap ${
+                        csvMessage.startsWith('✓') 
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                          : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                      }`}>
+                        <p className="text-sm">{csvMessage}</p>
+                      </div>
+                    )}
                   </div>
-                )}
+                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-300 font-medium mb-2">CSV Format Example:</p>
+                    <pre className="text-xs text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 p-3 rounded overflow-x-auto">
+{`election_code,first_name,last_name
+ABC123,John,Doe
+XYZ789,Jane,Smith
+DEF456,Bob,`}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+              {/* Google Sheets Sync Section */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Sync from Google Sheets
+                </h2>
+                <div className="max-w-md">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Sync voter data from Google Sheets to Supabase database. Requires Google Sheets API configuration.
+                  </p>
+                  <button
+                    onClick={handleSync}
+                    disabled={loading}
+                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Syncing...' : 'Sync from Google Sheets'}
+                  </button>
+                  {syncMessage && (
+                    <div className={`mt-4 p-4 rounded-lg ${
+                      syncMessage.startsWith('✓') 
+                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                    }`}>
+                      <p className="text-sm">{syncMessage}</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
