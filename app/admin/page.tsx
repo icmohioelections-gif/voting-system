@@ -38,6 +38,10 @@ export default function AdminPage() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvUploading, setCsvUploading] = useState(false);
   const [csvMessage, setCsvMessage] = useState('');
+  const [newCandidateName, setNewCandidateName] = useState('');
+  const [newCandidatePosition, setNewCandidatePosition] = useState('');
+  const [addingCandidate, setAddingCandidate] = useState(false);
+  const [candidateMessage, setCandidateMessage] = useState('');
 
   const fetchResults = async () => {
     setLoading(true);
@@ -174,6 +178,44 @@ export default function AdminPage() {
       setCsvMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to process CSV'}`);
     } finally {
       setCsvUploading(false);
+    }
+  };
+
+  const handleAddCandidate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newCandidateName.trim() || !newCandidatePosition.trim()) {
+      setCandidateMessage('✗ Name and position are required');
+      return;
+    }
+
+    setAddingCandidate(true);
+    setCandidateMessage('');
+
+    try {
+      const res = await fetch('/api/admin/candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCandidateName.trim(),
+          position: newCandidatePosition.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setCandidateMessage(`✓ ${data.message}`);
+        setNewCandidateName('');
+        setNewCandidatePosition('');
+        fetchCandidates();
+      } else {
+        setCandidateMessage(`✗ Error: ${data.error || 'Failed to add candidate'}`);
+      }
+    } catch (error) {
+      setCandidateMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to add candidate'}`);
+    } finally {
+      setAddingCandidate(false);
     }
   };
 
@@ -340,28 +382,91 @@ export default function AdminPage() {
 
           {/* Candidates Tab */}
           {activeTab === 'candidates' && (
-            <div>
-              {loading ? (
-                <div className="text-center py-8">Loading...</div>
-              ) : candidates.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">No candidates</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {candidates.map((candidate) => (
-                    <div
-                      key={candidate.id}
-                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
-                    >
-                      <div className="font-semibold text-gray-900 dark:text-white">
-                        {candidate.name}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {candidate.position}
-                      </div>
+            <div className="space-y-6">
+              {/* Add Candidate Form */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Add New Candidate
+                </h2>
+                <form onSubmit={handleAddCandidate} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Candidate Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newCandidateName}
+                        onChange={(e) => setNewCandidateName(e.target.value)}
+                        placeholder="e.g., John Doe"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        disabled={addingCandidate}
+                        required
+                      />
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Position *
+                      </label>
+                      <input
+                        type="text"
+                        value={newCandidatePosition}
+                        onChange={(e) => setNewCandidatePosition(e.target.value)}
+                        placeholder="e.g., President, Vice President"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        disabled={addingCandidate}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={addingCandidate}
+                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {addingCandidate ? 'Adding...' : 'Add Candidate'}
+                  </button>
+                  {candidateMessage && (
+                    <div className={`p-4 rounded-lg whitespace-pre-wrap ${
+                      candidateMessage.startsWith('✓') 
+                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                    }`}>
+                      <p className="text-sm">{candidateMessage}</p>
+                    </div>
+                  )}
+                </form>
+              </div>
+
+              {/* Candidates List */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Current Candidates ({candidates.length})
+                </h2>
+                {loading ? (
+                  <div className="text-center py-8">Loading...</div>
+                ) : candidates.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    No candidates added yet. Use the form above to add candidates.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {candidates.map((candidate) => (
+                      <div
+                        key={candidate.id}
+                        className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                      >
+                        <div className="font-semibold text-gray-900 dark:text-white">
+                          {candidate.name}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {candidate.position}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
