@@ -26,6 +26,13 @@ export default function LoginPage() {
         }),
       });
 
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        // Response is not JSON (likely HTML error page)
+        throw new Error('Server error: Please try again in a few moments. If the problem persists, contact support.');
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -39,7 +46,11 @@ export default function LoginPage() {
       // Redirect to vote page
       router.push('/vote');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid credentials');
+      if (err instanceof Error && err.message.includes('JSON')) {
+        setError('Server error: Please try again in a few moments. If the problem persists, contact support.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Invalid credentials');
+      }
     } finally {
       setLoading(false);
     }
