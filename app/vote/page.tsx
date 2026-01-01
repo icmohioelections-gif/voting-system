@@ -1,0 +1,176 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+interface Candidate {
+  id: string;
+  name: string;
+  position: string;
+}
+
+export default function VotePage() {
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [selectedCandidate, setSelectedCandidate] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check if user is logged in
+    const voterId = sessionStorage.getItem('voter_id');
+    if (!voterId) {
+      router.push('/login');
+      return;
+    }
+
+    // Fetch candidates
+    fetch('/api/candidates')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setCandidates(data.candidates || []);
+        }
+      })
+      .catch((err) => {
+        setError('Failed to load candidates');
+        console.error(err);
+      })
+      .finally(() => setLoading(false));
+  }, [router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedCandidate) {
+      setError('Please select a candidate');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const voterId = sessionStorage.getItem('voter_id');
+      const electionCode = sessionStorage.getItem('election_code');
+
+      const response = await fetch('/api/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          voter_id: voterId,
+          election_code: electionCode,
+          candidate_id: selectedCandidate,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Vote submission failed');
+      }
+
+      // Clear session and redirect to confirmation
+      sessionStorage.removeItem('voter_id');
+      sessionStorage.removeItem('election_code');
+      router.push('/confirmation');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit vote');
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading candidates...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-100 dark:from-gray-900 dark:to-gray-800 px-4 py-8">
+      <main className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+        <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-2">
+          Cast Your Vote
+        </h1>
+        <p className="text-center text-gray-600 dark:text-gray-300 mb-8">
+          Please select your preferred candidate
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+            {candidates.length === 0 ? (
+              <p className="text-center text-gray-500 dark:text-gray-400">
+                No candidates available
+              </p>
+            ) : (
+              candidates.map((candidate) => (
+                <label
+                  key={candidate.id}
+                  className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    selectedCandidate === candidate.id
+                      ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="candidate"
+                    value={candidate.id}
+                    checked={selectedCandidate === candidate.id}
+                    onChange={(e) => setSelectedCandidate(e.target.value)}
+                    className="sr-only"
+                    disabled={submitting}
+                  />
+                  <div className="flex items-center">
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${
+                        selectedCandidate === candidate.id
+                          ? 'border-indigo-600 bg-indigo-600'
+                          : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                    >
+                      {selectedCandidate === candidate.id && (
+                        <div className="w-2 h-2 rounded-full bg-white"></div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        {candidate.name}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {candidate.position}
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              ))
+            )}
+          </div>
+
+          {error && (
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting || !selectedCandidate}
+            className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? 'Submitting...' : 'Submit Vote'}
+          </button>
+        </form>
+      </main>
+    </div>
+  );
+}
+
