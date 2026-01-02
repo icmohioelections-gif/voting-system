@@ -34,10 +34,10 @@ export async function syncVotersFromSheets() {
     // Get the first sheet name (or use Sheet1 as fallback)
     const sheetName = metadataResponse.data.sheets?.[0]?.properties?.title || 'Sheet1';
     
-    // Read from Google Sheets (assuming data starts at row 2, row 1 is header)
+    // Read from Google Sheets (read from row 1 to detect header automatically)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetName}!A2:E1000`, // Use the actual sheet name
+      range: `${sheetName}!A1:E1000`, // Start from row 1 to detect headers
     });
 
     const rows = response.data.values || [];

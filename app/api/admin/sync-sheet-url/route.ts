@@ -144,6 +144,8 @@ export async function POST(request: NextRequest) {
         // Upsert voters
         let synced = 0;
         for (const voter of voters) {
+          if (!voter) continue; // Skip null entries
+          
           const { error } = await supabaseAdmin
             .from('voters')
             .upsert({
@@ -237,6 +239,8 @@ export async function POST(request: NextRequest) {
     // Upsert voters into Supabase
     let synced = 0;
     for (const voter of voters) {
+      if (!voter) continue; // Skip null entries
+      
       const { error } = await supabaseAdmin
         .from('voters')
         .upsert({
