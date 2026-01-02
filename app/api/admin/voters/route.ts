@@ -16,6 +16,10 @@ export async function GET() {
       );
     }
 
+    // Cleanup expired sessions
+    const { cleanupExpiredSessions } = await import('@/lib/sessions');
+    await cleanupExpiredSessions();
+
     return NextResponse.json({ voters: voters || [] });
   } catch (error) {
     console.error('Voters API error:', error);

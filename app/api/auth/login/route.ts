@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createSession } from '@/lib/sessions';
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,12 +61,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create session
+    const sessionToken = await createSession(voter.id, voter.election_code);
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30 minutes
+
     // Login successful
     return NextResponse.json({
       voter_id: voter.id,
       election_code: voter.election_code,
       first_name: voter.first_name,
       last_name: voter.last_name,
+      session_token: sessionToken,
+      expires_at: expiresAt.toISOString(),
     });
   } catch (error) {
     console.error('Login error:', error);

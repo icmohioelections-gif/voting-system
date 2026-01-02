@@ -16,6 +16,8 @@ interface Voter {
   last_name: string | null;
   has_voted: boolean;
   voted_at: string | null;
+  is_logged_in: boolean;
+  last_login: string | null;
 }
 
 interface ResultItem {
@@ -350,6 +352,18 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
+    // Force logout any voter sessions when accessing admin
+    const voterId = sessionStorage.getItem('voter_id');
+    if (voterId) {
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voter_id: voterId }),
+      }).then(() => {
+        sessionStorage.clear();
+      }).catch(() => {});
+    }
+
     if (activeTab === 'results') fetchResults();
     if (activeTab === 'voters') fetchVoters();
     if (activeTab === 'candidates') fetchCandidates();
@@ -545,7 +559,13 @@ export default function AdminPage() {
                         Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        Status
+                        Vote Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Login Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Last Login
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Voted At
@@ -555,13 +575,13 @@ export default function AdminPage() {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {loading ? (
                       <tr>
-                        <td colSpan={4} className="px-6 py-4 text-center">
+                        <td colSpan={6} className="px-6 py-4 text-center">
                           Loading...
                         </td>
                       </tr>
                     ) : voters.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
                           No voters found
                         </td>
                       </tr>
@@ -584,6 +604,25 @@ export default function AdminPage() {
                             >
                               {voter.has_voted ? 'Voted' : 'Not Voted'}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                voter.is_logged_in
+                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 flex items-center gap-1'
+                                  : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              {voter.is_logged_in && (
+                                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></span>
+                              )}
+                              {voter.is_logged_in ? 'Logged In' : 'Not Logged In'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {voter.last_login
+                              ? new Date(voter.last_login).toLocaleString()
+                              : 'Never'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {voter.voted_at

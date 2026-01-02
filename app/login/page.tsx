@@ -42,6 +42,14 @@ export default function LoginPage() {
       // Store voter session
       sessionStorage.setItem('voter_id', data.voter_id);
       sessionStorage.setItem('election_code', electionCode.trim());
+      sessionStorage.setItem('voter_first_name', data.first_name);
+      sessionStorage.setItem('voter_last_name', data.last_name || '');
+      if (data.session_token) {
+        sessionStorage.setItem('session_token', data.session_token);
+      }
+      if (data.expires_at) {
+        sessionStorage.setItem('session_expiry', new Date(data.expires_at).getTime().toString());
+      }
 
       // Redirect to vote page
       router.push('/vote');

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { updateVoterInSheets } from '@/lib/google-sheets';
+import { deleteSession } from '@/lib/sessions';
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,6 +99,14 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to update voter status' },
         { status: 500 }
       );
+    }
+
+    // Delete session (voter cannot login again after voting)
+    try {
+      await deleteSession(voter_id);
+    } catch (sessionError) {
+      console.error('Session deletion error:', sessionError);
+      // Continue even if session deletion fails
     }
 
     // Update Google Sheets (non-blocking)

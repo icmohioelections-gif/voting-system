@@ -31,12 +31,14 @@ export default function VotePage() {
     }
 
     // Verify session with server before allowing access
+    const sessionToken = sessionStorage.getItem('session_token');
     fetch('/api/auth/verify-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         voter_id: voterId,
         election_code: electionCode,
+        session_token: sessionToken,
       }),
     })
       .then(async (res) => {
@@ -98,12 +100,14 @@ export default function VotePage() {
       }
 
       // Verify session again before submitting vote
+      const sessionToken = sessionStorage.getItem('session_token');
       const verifyResponse = await fetch('/api/auth/verify-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           voter_id: voterId,
           election_code: electionCode,
+          session_token: sessionToken,
         }),
       });
 
