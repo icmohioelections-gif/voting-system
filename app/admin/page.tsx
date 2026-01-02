@@ -24,7 +24,7 @@ interface ResultItem {
 }
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'results' | 'voters' | 'candidates' | 'sync'>('results');
+  const [activeTab, setActiveTab] = useState<'results' | 'voters' | 'candidates' | 'sync' | 'settings'>('results');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ResultItem[]>([]);
   const [statistics, setStatistics] = useState<{
@@ -49,6 +49,11 @@ export default function AdminPage() {
   const [newVoterElectionCode, setNewVoterElectionCode] = useState('');
   const [addingVoter, setAddingVoter] = useState(false);
   const [voterMessage, setVoterMessage] = useState('');
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [syncingSheet, setSyncingSheet] = useState(false);
+  const [sheetSyncMessage, setSheetSyncMessage] = useState('');
+  const [resettingDb, setResettingDb] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
 
   const fetchResults = async () => {
     setLoading(true);
@@ -277,6 +282,73 @@ export default function AdminPage() {
     }
   };
 
+  const handleSyncSheetUrl = async () => {
+    if (!sheetUrl.trim()) {
+      setSheetSyncMessage('✗ Please enter a Google Sheet URL');
+      return;
+    }
+
+    setSyncingSheet(true);
+    setSheetSyncMessage('');
+
+    try {
+      const res = await fetch('/api/admin/sync-sheet-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheet_url: sheetUrl.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setSheetSyncMessage(`✓ ${data.message}`);
+        setSheetUrl('');
+        fetchVoters();
+      } else {
+        setSheetSyncMessage(`✗ Error: ${data.error}${data.details ? '\n' + data.details : ''}`);
+      }
+    } catch (error) {
+      setSheetSyncMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to sync sheet'}`);
+    } finally {
+      setSyncingSheet(false);
+    }
+  };
+
+  const handleResetDb = async () => {
+    if (!confirm('Are you sure you want to delete ALL data? This will remove all votes, voters, and candidates. This action cannot be undone.')) {
+      return;
+    }
+
+    if (!confirm('This is your last warning. Are you absolutely sure?')) {
+      return;
+    }
+
+    setResettingDb(true);
+    setResetMessage('');
+
+    try {
+      const res = await fetch('/api/admin/reset-db', {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setResetMessage(`✓ ${data.message}`);
+        // Refresh all data
+        fetchResults();
+        fetchVoters();
+        fetchCandidates();
+      } else {
+        setResetMessage(`✗ Error: ${data.error}${data.details ? '\n' + data.details : ''}`);
+      }
+    } catch (error) {
+      setResetMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to reset database'}`);
+    } finally {
+      setResettingDb(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'results') fetchResults();
     if (activeTab === 'voters') fetchVoters();
@@ -294,7 +366,7 @@ export default function AdminPage() {
           {/* Tabs */}
           <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
             <nav className="-mb-px flex space-x-8">
-              {(['results', 'voters', 'candidates', 'sync'] as const).map((tab) => (
+              {(['results', 'voters', 'candidates', 'sync', 'settings'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -729,6 +801,99 @@ DEF456,Bob,`}
                         : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
                     }`}>
                       <p className="text-sm">{syncMessage}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Settings Tab */}
+          {activeTab === 'settings' && (
+            <div className="space-y-8">
+              {/* Google Sheet URL Sync */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Sync from Google Sheet URL
+                </h2>
+                <div className="max-w-2xl">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    Enter a Google Sheets URL to sync voter data. The sheet should be publicly accessible (view permission) or you need Google Sheets API credentials.
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Google Sheet URL
+                      </label>
+                      <input
+                        type="url"
+                        value={sheetUrl}
+                        onChange={(e) => setSheetUrl(e.target.value)}
+                        placeholder="https://docs.google.com/spreadsheets/d/163BMLKY3rzA6udXKJiuDMamGYlejd7_q/edit"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        disabled={syncingSheet}
+                      />
+                    </div>
+                    <button
+                      onClick={handleSyncSheetUrl}
+                      disabled={syncingSheet || !sheetUrl.trim()}
+                      className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {syncingSheet ? 'Syncing...' : 'Sync from Sheet URL'}
+                    </button>
+                    {sheetSyncMessage && (
+                      <div className={`p-4 rounded-lg whitespace-pre-wrap ${
+                        sheetSyncMessage.startsWith('✓') 
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                          : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                      }`}>
+                        <p className="text-sm">{sheetSyncMessage}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-300 font-medium mb-2">How to make a sheet public:</p>
+                    <ol className="text-sm text-blue-700 dark:text-blue-400 list-decimal list-inside space-y-1">
+                      <li>Open your Google Sheet</li>
+                      <li>Click "Share" button (top right)</li>
+                      <li>Change access to "Anyone with the link" → "Viewer"</li>
+                      <li>Copy the sheet URL and paste above</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+              {/* Database Reset */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Database Management
+                </h2>
+                <div className="max-w-2xl">
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                    <p className="text-red-800 dark:text-red-200 text-sm font-medium mb-2">
+                      ⚠️ Warning: This action cannot be undone
+                    </p>
+                    <p className="text-red-700 dark:text-red-300 text-sm">
+                      Resetting the database will permanently delete ALL votes, voters, and candidates. Use this to start fresh with a clean database.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleResetDb}
+                    disabled={resettingDb}
+                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resettingDb ? 'Resetting...' : 'Reset Database (Delete All Data)'}
+                  </button>
+                  {resetMessage && (
+                    <div className={`mt-4 p-4 rounded-lg whitespace-pre-wrap ${
+                      resetMessage.startsWith('✓') 
+                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                    }`}>
+                      <p className="text-sm">{resetMessage}</p>
                     </div>
                   )}
                 </div>
