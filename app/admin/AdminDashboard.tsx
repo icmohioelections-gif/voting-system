@@ -873,22 +873,23 @@ DEF456,Bob,`}
 
               {/* Database Reset */}
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
                   Database Management
                 </h2>
                 <div className="max-w-2xl">
                   <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
-                    <p className="text-red-800 dark:text-red-200 text-sm font-medium mb-2">
+                    <p className="text-red-800 dark:text-red-200 text-sm font-medium mb-2" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
                       ⚠️ Warning: This action cannot be undone
                     </p>
-                    <p className="text-red-700 dark:text-red-300 text-sm">
+                    <p className="text-red-700 dark:text-red-300 text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
                       Resetting the database will permanently delete ALL votes, voters, and candidates. Use this to start fresh with a clean database.
                     </p>
                   </div>
                   <button
                     onClick={handleResetDb}
                     disabled={resettingDb}
-                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
                   >
                     {resettingDb ? 'Resetting...' : 'Reset Database (Delete All Data)'}
                   </button>
@@ -898,7 +899,7 @@ DEF456,Bob,`}
                         ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
                         : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
                     }`}>
-                      <p className="text-sm">{resetMessage}</p>
+                      <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{resetMessage}</p>
                     </div>
                   )}
                 </div>
