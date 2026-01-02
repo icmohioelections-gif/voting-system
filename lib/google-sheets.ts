@@ -100,6 +100,8 @@ export async function syncVotersFromSheets() {
     // Upsert voters into Supabase
     let synced = 0;
     for (const voter of voters) {
+      if (!voter) continue; // Skip null entries
+      
       const { error } = await supabaseAdmin
         .from('voters')
         .upsert({
@@ -108,6 +110,7 @@ export async function syncVotersFromSheets() {
           last_name: voter.last_name,
           has_voted: voter.has_voted,
           voted_at: voter.voted_at || null,
+          voting_start_date: new Date().toISOString(),
         }, {
           onConflict: 'election_code'
         });
