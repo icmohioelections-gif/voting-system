@@ -59,10 +59,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-100 dark:from-gray-900 dark:to-gray-800 px-4">
       <main className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-        <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-2">
+        <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-2" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
           Online Voting Login
         </h1>
-        <p className="text-center text-gray-600 dark:text-gray-300 mb-8">
+        <p className="text-center text-gray-600 dark:text-gray-300 mb-8" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
           Enter your election code and name to vote
         </p>
 
@@ -71,6 +71,7 @@ export default function LoginPage() {
             <label
               htmlFor="election-code"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
             >
               Election Code
             </label>
@@ -81,6 +82,7 @@ export default function LoginPage() {
               onChange={(e) => setElectionCode(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="Enter your election code"
+              style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
               required
               disabled={loading}
             />
@@ -90,6 +92,7 @@ export default function LoginPage() {
             <label
               htmlFor="name"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
             >
               First Name or Last Name
             </label>
@@ -100,6 +103,7 @@ export default function LoginPage() {
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="Enter your first name or last name"
+              style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
               required
               disabled={loading}
             />
@@ -109,6 +113,7 @@ export default function LoginPage() {
             type="submit"
             disabled={loading}
             className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>
@@ -116,7 +121,7 @@ export default function LoginPage() {
 
         {error && (
           <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+            <p className="text-red-800 dark:text-red-200 text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{error}</p>
           </div>
         )}
 

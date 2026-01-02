@@ -96,3 +96,4 @@ XYZ789,Jane,Smith,FALSE,
 - ✅ **Safe** - double confirmation for destructive operations
 - ✅ **Flexible** - works with both public and private sheets
 
+

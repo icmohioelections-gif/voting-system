@@ -180,3 +180,4 @@ File location: `supabase/migration_add_features.sql`
 - Login API: `app/api/auth/login/route.ts`
 - Add Voter API: `app/api/admin/add-voter/route.ts`
 
+

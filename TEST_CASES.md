@@ -436,3 +436,4 @@ Use this checklist to ensure all features are tested:
 - Voter data can be updated via CSV upload (upsert behavior)
 - Google Sheets sync requires API credentials (optional feature)
 
+

@@ -228,3 +228,4 @@ Once setup is complete:
 3. You can use the Settings tab to sync anytime
 4. No need to make sheets public anymore!
 
+

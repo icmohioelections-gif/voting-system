@@ -57,3 +57,4 @@ INSERT INTO candidates (name, position) VALUES
 - Candidates are displayed on the vote page for voters to choose from
 - You can add candidates at any time, even after voting has started
 
+

@@ -20,14 +20,14 @@ export default function ConfirmationPage() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
             Thank You for Voting!
           </h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
+          <p className="text-gray-600 dark:text-gray-300 mb-6" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
             Thank you for voting.
           </p>
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
-            <p className="text-green-800 dark:text-green-200 font-medium">
+            <p className="text-green-800 dark:text-green-200 font-medium" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
               The results will be announced soon.
             </p>
           </div>
@@ -36,6 +36,7 @@ export default function ConfirmationPage() {
         <Link
           href="/"
           className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
+          style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
         >
           Return to Home
         </Link>

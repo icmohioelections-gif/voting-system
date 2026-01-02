@@ -19,3 +19,4 @@ WHERE voting_start_date IS NULL;
 -- Add index for voting window queries
 CREATE INDEX IF NOT EXISTS idx_voters_voting_start_date ON voters(voting_start_date);
 
+

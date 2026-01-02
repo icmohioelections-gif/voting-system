@@ -137,3 +137,4 @@ Your setup is **99% complete**! You just need to:
 
 Once that's done, your private Google Sheets will sync automatically! 🎉
 
+

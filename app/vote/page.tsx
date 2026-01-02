@@ -23,15 +23,43 @@ export default function VotePage() {
   useEffect(() => {
     // Check if user is logged in
     const voterId = sessionStorage.getItem('voter_id');
-    if (!voterId) {
+    const electionCode = sessionStorage.getItem('election_code');
+    
+    if (!voterId || !electionCode) {
       router.push('/login');
       return;
     }
 
-    // Fetch candidates
-    fetch('/api/candidates')
-      .then((res) => res.json())
-      .then((data) => {
+    // Verify session with server before allowing access
+    fetch('/api/auth/verify-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        voter_id: voterId,
+        election_code: electionCode,
+      }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          // Session invalid or voter already voted
+          sessionStorage.removeItem('voter_id');
+          sessionStorage.removeItem('election_code');
+          if (data.has_voted) {
+            router.push('/confirmation');
+          } else {
+            setError(data.error || 'Session expired. Please log in again.');
+            setTimeout(() => router.push('/login'), 2000);
+          }
+          return null;
+        }
+
+        // Session is valid, fetch candidates
+        return fetch('/api/candidates');
+      })
+      .then(async (res) => {
+        if (!res) return; // Previous error handled
+        const data = await res.json();
         if (data.error) {
           setError(data.error);
         } else {
@@ -64,6 +92,31 @@ export default function VotePage() {
     try {
       const voterId = sessionStorage.getItem('voter_id');
       const electionCode = sessionStorage.getItem('election_code');
+
+      if (!voterId || !electionCode) {
+        throw new Error('Session expired. Please log in again.');
+      }
+
+      // Verify session again before submitting vote
+      const verifyResponse = await fetch('/api/auth/verify-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          voter_id: voterId,
+          election_code: electionCode,
+        }),
+      });
+
+      const verifyData = await verifyResponse.json();
+      if (!verifyResponse.ok) {
+        sessionStorage.removeItem('voter_id');
+        sessionStorage.removeItem('election_code');
+        if (verifyData.has_voted) {
+          router.push('/confirmation');
+          return;
+        }
+        throw new Error(verifyData.error || 'Session expired. Please log in again.');
+      }
 
       const response = await fetch('/api/vote', {
         method: 'POST',
@@ -105,10 +158,10 @@ export default function VotePage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-100 dark:from-gray-900 dark:to-gray-800 px-4 py-8">
       <main className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-        <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-2">
+        <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-2" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
           Cast Your Vote
         </h1>
-        <p className="text-center text-gray-600 dark:text-gray-300 mb-8">
+        <p className="text-center text-gray-600 dark:text-gray-300 mb-8" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
           Please select your preferred candidate
         </p>
 
@@ -160,14 +213,14 @@ export default function VotePage() {
                       />
                     )}
                     <div className="flex-1">
-                      <div className="font-semibold text-gray-900 dark:text-white text-lg">
+                      <div className="font-semibold text-gray-900 dark:text-white text-lg" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
                         {candidate.name}
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mb-2" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
                         {candidate.position}
                       </div>
                       {candidate.description && (
-                        <div className="text-sm text-gray-700 dark:text-gray-300 mt-2">
+                        <div className="text-sm text-gray-700 dark:text-gray-300 mt-2" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
                           {candidate.description}
                         </div>
                       )}
@@ -188,14 +241,14 @@ export default function VotePage() {
               className="mt-1 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
               disabled={submitting}
             />
-            <label htmlFor="terms" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <label htmlFor="terms" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
               I agree to the terms and conditions. I understand that once I submit my vote, it cannot be edited or changed, and I will not be able to log in again.
             </label>
           </div>
 
           {error && (
             <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
+              <p className="text-red-800 dark:text-red-200 text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{error}</p>
             </div>
           )}
 
@@ -203,6 +256,7 @@ export default function VotePage() {
             type="submit"
             disabled={submitting || !selectedCandidate || !termsAgreed}
             className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
           >
             {submitting ? 'Submitting...' : 'Submit Vote'}
           </button>
