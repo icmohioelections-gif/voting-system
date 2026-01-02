@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Logo from '@/components/Logo';
 
 interface Candidate {
   id: string;
@@ -373,9 +374,12 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
-            Admin Dashboard
-          </h1>
+          <div className="mb-6">
+            <Logo className="mb-4" />
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+              Admin Dashboard
+            </h1>
+          </div>
 
           {/* Tabs */}
           <div className="border-b border-gray-200 dark:border-gray-700 mb-6">

@@ -97,3 +97,16 @@ CREATE TRIGGER update_voters_updated_at BEFORE UPDATE ON voters
 CREATE TRIGGER update_candidates_updated_at BEFORE UPDATE ON candidates
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Add 2 default candidates if they don't exist
+INSERT INTO candidates (name, position)
+SELECT 'Candidate 1', 'President'
+WHERE NOT EXISTS (
+  SELECT 1 FROM candidates WHERE name = 'Candidate 1' AND position = 'President'
+);
+
+INSERT INTO candidates (name, position)
+SELECT 'Candidate 2', 'President'
+WHERE NOT EXISTS (
+  SELECT 1 FROM candidates WHERE name = 'Candidate 2' AND position = 'President'
+);
+
