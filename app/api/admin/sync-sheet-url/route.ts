@@ -73,9 +73,18 @@ export async function POST(request: NextRequest) {
         });
 
         const sheets = google.sheets({ version: 'v4', auth });
+        
+        // First, try to get the sheet metadata to find the correct sheet name
+        const metadataResponse = await sheets.spreadsheets.get({
+          spreadsheetId,
+        });
+
+        // Get the first sheet name (or use Sheet1 as fallback)
+        const sheetName = metadataResponse.data.sheets?.[0]?.properties?.title || 'Sheet1';
+        
         const response = await sheets.spreadsheets.values.get({
           spreadsheetId,
-          range: 'Sheet1!A2:E1000',
+          range: `${sheetName}!A2:E1000`, // Use the actual sheet name
         });
 
         const rows = response.data.values || [];

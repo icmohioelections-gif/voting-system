@@ -25,10 +25,18 @@ export async function syncVotersFromSheets() {
     const sheets = getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID!;
     
+    // First, get sheet metadata to find the correct sheet name
+    const metadataResponse = await sheets.spreadsheets.get({
+      spreadsheetId,
+    });
+
+    // Get the first sheet name (or use Sheet1 as fallback)
+    const sheetName = metadataResponse.data.sheets?.[0]?.properties?.title || 'Sheet1';
+    
     // Read from Google Sheets (assuming data starts at row 2, row 1 is header)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Sheet1!A2:E1000', // Adjust range as needed
+      range: `${sheetName}!A2:E1000`, // Use the actual sheet name
     });
 
     const rows = response.data.values || [];
@@ -78,10 +86,16 @@ export async function updateVoterInSheets(electionCode: string, votedAt: string)
     const sheets = getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID!;
     
+    // Get the sheet name first
+    const metadataResponse = await sheets.spreadsheets.get({
+      spreadsheetId,
+    });
+    const sheetName = metadataResponse.data.sheets?.[0]?.properties?.title || 'Sheet1';
+    
     // First, find the row number for this election code
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Sheet1!A2:E1000',
+      range: `${sheetName}!A2:E1000`,
     });
 
     const rows = response.data.values || [];
@@ -93,7 +107,7 @@ export async function updateVoterInSheets(electionCode: string, votedAt: string)
     }
 
     // Update the row (rowIndex + 2 because we start at row 2, and Google Sheets is 1-indexed)
-    const updateRange = `Sheet1!D${rowIndex + 2}:E${rowIndex + 2}`;
+    const updateRange = `${sheetName}!D${rowIndex + 2}:E${rowIndex + 2}`;
     
     await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -117,9 +131,15 @@ export async function getAllVotersFromSheets() {
     const sheets = getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID!;
     
+    // Get the sheet name first
+    const metadataResponse = await sheets.spreadsheets.get({
+      spreadsheetId,
+    });
+    const sheetName = metadataResponse.data.sheets?.[0]?.properties?.title || 'Sheet1';
+    
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'Sheet1!A2:E1000',
+      range: `${sheetName}!A2:E1000`,
     });
 
     const rows = response.data.values || [];
