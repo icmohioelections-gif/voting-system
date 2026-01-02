@@ -55,6 +55,8 @@ export async function GET() {
           id: candidatePartial.id,
           name: candidatePartial.name,
           position: candidatePartial.position,
+          photo_url: null,
+          description: null,
           created_at: '', // Not needed for results
           updated_at: '', // Not needed for results
         };

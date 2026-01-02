@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, position } = await request.json();
+    const { name, position, photo_url, description } = await request.json();
 
     if (!name || !position) {
       return NextResponse.json(
@@ -17,6 +17,8 @@ export async function POST(request: NextRequest) {
       .insert({
         name: name.trim(),
         position: position.trim(),
+        photo_url: photo_url?.trim() || null,
+        description: description?.trim() || null,
       })
       .select()
       .single();

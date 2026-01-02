@@ -31,6 +31,8 @@ export interface Candidate {
   id: string;
   name: string;
   position: string;
+  photo_url: string | null;
+  description: string | null;
   created_at: string;
   updated_at: string;
 }

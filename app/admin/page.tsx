@@ -40,8 +40,15 @@ export default function AdminPage() {
   const [csvMessage, setCsvMessage] = useState('');
   const [newCandidateName, setNewCandidateName] = useState('');
   const [newCandidatePosition, setNewCandidatePosition] = useState('');
+  const [newCandidatePhoto, setNewCandidatePhoto] = useState('');
+  const [newCandidateDescription, setNewCandidateDescription] = useState('');
   const [addingCandidate, setAddingCandidate] = useState(false);
   const [candidateMessage, setCandidateMessage] = useState('');
+  const [newVoterFirstName, setNewVoterFirstName] = useState('');
+  const [newVoterLastName, setNewVoterLastName] = useState('');
+  const [newVoterElectionCode, setNewVoterElectionCode] = useState('');
+  const [addingVoter, setAddingVoter] = useState(false);
+  const [voterMessage, setVoterMessage] = useState('');
 
   const fetchResults = async () => {
     setLoading(true);
@@ -199,6 +206,8 @@ export default function AdminPage() {
         body: JSON.stringify({
           name: newCandidateName.trim(),
           position: newCandidatePosition.trim(),
+          photo_url: newCandidatePhoto.trim() || null,
+          description: newCandidateDescription.trim() || null,
         }),
       });
 
@@ -208,6 +217,8 @@ export default function AdminPage() {
         setCandidateMessage(`✓ ${data.message}`);
         setNewCandidateName('');
         setNewCandidatePosition('');
+        setNewCandidatePhoto('');
+        setNewCandidateDescription('');
         fetchCandidates();
       } else {
         setCandidateMessage(`✗ Error: ${data.error || 'Failed to add candidate'}`);
@@ -216,6 +227,53 @@ export default function AdminPage() {
       setCandidateMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to add candidate'}`);
     } finally {
       setAddingCandidate(false);
+    }
+  };
+
+  const handleAddVoter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newVoterFirstName.trim() || !newVoterElectionCode.trim()) {
+      setVoterMessage('✗ First name and election code are required');
+      return;
+    }
+
+    // Validate 10-digit alphanumeric code
+    const codePattern = /^[A-Za-z0-9]{10}$/;
+    if (!codePattern.test(newVoterElectionCode.trim())) {
+      setVoterMessage('✗ Election code must be exactly 10 alphanumeric characters');
+      return;
+    }
+
+    setAddingVoter(true);
+    setVoterMessage('');
+
+    try {
+      const res = await fetch('/api/admin/add-voter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: newVoterFirstName.trim(),
+          last_name: newVoterLastName.trim() || null,
+          election_code: newVoterElectionCode.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setVoterMessage(`✓ ${data.message}`);
+        setNewVoterFirstName('');
+        setNewVoterLastName('');
+        setNewVoterElectionCode('');
+        fetchVoters();
+      } else {
+        setVoterMessage(`✗ Error: ${data.error || 'Failed to add voter'}`);
+      }
+    } catch (error) {
+      setVoterMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to add voter'}`);
+    } finally {
+      setAddingVoter(false);
     }
   };
 
@@ -284,29 +342,43 @@ export default function AdminPage() {
                 ) : results.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">No votes cast yet</div>
                 ) : (
-                  results.map((item, index) => (
-                    <div
-                      key={item.candidate.id}
-                      className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-900 dark:text-white">
-                            {item.candidate.name}
+                  (() => {
+                    const maxVotes = Math.max(...results.map(r => r.count), 1);
+                    return results.map((item, index) => {
+                      const percentage = (item.count / maxVotes) * 100;
+                      return (
+                        <div
+                          key={item.candidate.id}
+                          className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-4">
+                              <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-gray-900 dark:text-white">
+                                  {item.candidate.name}
+                                </div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                  {item.candidate.position}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                              {item.count}
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {item.candidate.position}
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                            <div
+                              className="bg-indigo-600 h-3 rounded-full transition-all duration-300"
+                              style={{ width: `${percentage}%` }}
+                            />
                           </div>
                         </div>
-                      </div>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {item.count}
-                      </div>
-                    </div>
-                  ))
+                      );
+                    });
+                  })()
                 )}
               </div>
             </div>
@@ -314,7 +386,82 @@ export default function AdminPage() {
 
           {/* Voters Tab */}
           {activeTab === 'voters' && (
-            <div>
+            <div className="space-y-6">
+              {/* Add Voter Form */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  Add New Voter
+                </h2>
+                <form onSubmit={handleAddVoter} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newVoterFirstName}
+                        onChange={(e) => setNewVoterFirstName(e.target.value)}
+                        placeholder="John"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        disabled={addingVoter}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Last Name (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={newVoterLastName}
+                        onChange={(e) => setNewVoterLastName(e.target.value)}
+                        placeholder="Doe"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        disabled={addingVoter}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Unique Election Code (10 alphanumeric) *
+                      </label>
+                      <input
+                        type="text"
+                        value={newVoterElectionCode}
+                        onChange={(e) => setNewVoterElectionCode(e.target.value.toUpperCase())}
+                        placeholder="ABC123XYZ7"
+                        pattern="[A-Za-z0-9]{10}"
+                        maxLength={10}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono"
+                        disabled={addingVoter}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={addingVoter}
+                    className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {addingVoter ? 'Adding...' : 'Add Voter'}
+                  </button>
+                  {voterMessage && (
+                    <div className={`p-4 rounded-lg whitespace-pre-wrap ${
+                      voterMessage.startsWith('✓') 
+                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                    }`}>
+                      <p className="text-sm">{voterMessage}</p>
+                    </div>
+                  )}
+                </form>
+              </div>
+
+              {/* Voters List */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                  All Voters ({voters.length})
+                </h2>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700">
@@ -377,6 +524,7 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
+              </div>
             </div>
           )}
 
@@ -418,6 +566,32 @@ export default function AdminPage() {
                         required
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Photo URL (optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={newCandidatePhoto}
+                      onChange={(e) => setNewCandidatePhoto(e.target.value)}
+                      placeholder="https://example.com/photo.jpg"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      disabled={addingCandidate}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Short Description (optional)
+                    </label>
+                    <textarea
+                      value={newCandidateDescription}
+                      onChange={(e) => setNewCandidateDescription(e.target.value)}
+                      placeholder="Brief description about the candidate"
+                      rows={3}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      disabled={addingCandidate}
+                    />
                   </div>
                   <button
                     type="submit"

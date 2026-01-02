@@ -7,6 +7,8 @@ interface Candidate {
   id: string;
   name: string;
   position: string;
+  photo_url: string | null;
+  description: string | null;
 }
 
 export default function VotePage() {
@@ -15,6 +17,7 @@ export default function VotePage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [termsAgreed, setTermsAgreed] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -47,6 +50,11 @@ export default function VotePage() {
 
     if (!selectedCandidate) {
       setError('Please select a candidate');
+      return;
+    }
+
+    if (!termsAgreed) {
+      setError('You must agree to the terms before submitting your vote');
       return;
     }
 
@@ -129,9 +137,9 @@ export default function VotePage() {
                     className="sr-only"
                     disabled={submitting}
                   />
-                  <div className="flex items-center">
+                  <div className="flex items-start gap-4">
                     <div
-                      className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${
+                      className={`w-5 h-5 rounded-full border-2 mt-1 flex items-center justify-center flex-shrink-0 ${
                         selectedCandidate === candidate.id
                           ? 'border-indigo-600 bg-indigo-600'
                           : 'border-gray-300 dark:border-gray-600'
@@ -141,18 +149,48 @@ export default function VotePage() {
                         <div className="w-2 h-2 rounded-full bg-white"></div>
                       )}
                     </div>
-                    <div>
-                      <div className="font-semibold text-gray-900 dark:text-white">
+                    {candidate.photo_url && (
+                      <img
+                        src={candidate.photo_url}
+                        alt={candidate.name}
+                        className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-900 dark:text-white text-lg">
                         {candidate.name}
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                         {candidate.position}
                       </div>
+                      {candidate.description && (
+                        <div className="text-sm text-gray-700 dark:text-gray-300 mt-2">
+                          {candidate.description}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </label>
               ))
             )}
+          </div>
+
+          {/* Terms and Conditions Checkbox */}
+          <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={termsAgreed}
+              onChange={(e) => setTermsAgreed(e.target.checked)}
+              className="mt-1 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              disabled={submitting}
+            />
+            <label htmlFor="terms" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              I agree to the terms and conditions. I understand that once I submit my vote, it cannot be edited or changed, and I will not be able to log in again.
+            </label>
           </div>
 
           {error && (
@@ -163,7 +201,7 @@ export default function VotePage() {
 
           <button
             type="submit"
-            disabled={submitting || !selectedCandidate}
+            disabled={submitting || !selectedCandidate || !termsAgreed}
             className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? 'Submitting...' : 'Submit Vote'}

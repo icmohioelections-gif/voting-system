@@ -24,7 +24,7 @@ export default function ConfirmationPage() {
             Thank You for Voting!
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Your vote has been successfully recorded and is now locked.
+            Thank you for voting.
           </p>
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
             <p className="text-green-800 dark:text-green-200 font-medium">

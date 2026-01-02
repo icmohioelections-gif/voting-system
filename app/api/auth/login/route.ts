@@ -37,6 +37,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check 5-day voting window
+    const votingStartDate = voter.voting_start_date ? new Date(voter.voting_start_date) : new Date(voter.created_at);
+    const now = new Date();
+    const daysSinceStart = (now.getTime() - votingStartDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    if (daysSinceStart > 5) {
+      return NextResponse.json(
+        { error: 'Voting period has expired. You had 5 days to cast your vote.' },
+        { status: 403 }
+      );
+    }
+
     // Verify name matches (check first_name OR last_name)
     const firstNameMatch = voter.first_name.toLowerCase() === trimmedName;
     const lastNameMatch = voter.last_name?.toLowerCase() === trimmedName;

@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
             last_name: voter.last_name,
             has_voted: false,
             voted_at: null,
+            voting_start_date: new Date().toISOString(),
           },
           {
             onConflict: 'election_code',
