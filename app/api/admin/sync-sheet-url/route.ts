@@ -58,14 +58,11 @@ export async function POST(request: NextRequest) {
         const sheets = google.sheets({ version: 'v4', auth });
         
         // Get the sheet metadata to find the correct sheet name
-        // Use fields parameter to only get what we need
         const metadataResponse = await sheets.spreadsheets.get({
           spreadsheetId,
-          fields: 'sheets.properties(title,sheetId)',
         });
 
         // Get the first sheet name (or use Sheet1 as fallback)
-        // Note: GID in URL doesn't always match sheetId in API, so we use the first sheet
         const sheetName = metadataResponse.data.sheets?.[0]?.properties?.title || 'Sheet1';
         
         const response = await sheets.spreadsheets.values.get({
