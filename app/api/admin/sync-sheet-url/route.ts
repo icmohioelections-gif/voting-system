@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { generateElectionCode, parseName } from '@/lib/election-codes';
 
 // Extract spreadsheet ID and GID from Google Sheets URL
 function extractSheetInfo(url: string): { spreadsheetId: string; gid: string } | null {
@@ -96,14 +97,49 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Process rows (same as CSV processing below)
-        const voters = rows.map((row) => ({
-          election_code: row[0]?.trim() || '',
-          first_name: row[1]?.trim() || '',
-          last_name: row[2]?.trim() || null,
-          has_voted: row[3] === 'TRUE' || row[3] === 'true' || row[3] === true,
-          voted_at: row[4] || null,
-        })).filter(v => v.election_code && v.first_name);
+        // Process rows - support multiple formats
+        const firstRow = rows[0] || [];
+        const isHeaderRow = firstRow.some(cell => {
+          const cellStr = String(cell || '').toLowerCase();
+          return cellStr.includes('election') || cellStr.includes('code') || 
+                 cellStr.includes('first') || cellStr.includes('name') ||
+                 cellStr.includes('last') || cellStr.includes('voted');
+        });
+        
+        const dataRows = isHeaderRow ? rows.slice(1) : rows;
+        
+        const voters = dataRows.map((row, index) => {
+          const rowIndex = isHeaderRow ? index + 2 : index + 1;
+          
+          // Detailed format: election_code, first_name, last_name, has_voted, voted_at
+          if (row.length >= 2 && row[0] && row[1]) {
+            return {
+              election_code: row[0]?.trim() || '',
+              first_name: row[1]?.trim() || '',
+              last_name: row[2]?.trim() || null,
+              has_voted: row[3] === 'TRUE' || row[3] === 'true' || row[3] === true,
+              voted_at: row[4] || null,
+            };
+          } else if (row[0]) {
+            // Simple format: just a name
+            const fullName = String(row[0]).trim();
+            if (!fullName) return null;
+            
+            const { first_name, last_name } = parseName(fullName);
+            if (!first_name) return null;
+            
+            const election_code = generateElectionCode(fullName, rowIndex);
+            
+            return {
+              election_code,
+              first_name,
+              last_name,
+              has_voted: false,
+              voted_at: null,
+            };
+          }
+          return null;
+        }).filter(v => v !== null && v.election_code && v.first_name);
 
         // Upsert voters
         let synced = 0;
@@ -149,17 +185,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse CSV (skip header row)
+    // Parse CSV - support multiple formats
+    const firstLine = lines[0] || '';
+    const isHeaderRow = firstLine.toLowerCase().includes('election') || 
+                        firstLine.toLowerCase().includes('code') ||
+                        firstLine.toLowerCase().includes('first') ||
+                        firstLine.toLowerCase().includes('name');
+    
+    const startIndex = isHeaderRow ? 1 : 0;
     const voters = [];
-    for (let i = 1; i < lines.length; i++) {
+    
+    for (let i = startIndex; i < lines.length; i++) {
       const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-      if (values[0] && values[1]) { // election_code and first_name are required
+      
+      if (values.length >= 2 && values[0] && values[1]) {
+        // Detailed format: election_code, first_name, last_name, has_voted, voted_at
         voters.push({
           election_code: values[0],
           first_name: values[1],
           last_name: values[2] || null,
           has_voted: values[3] === 'TRUE' || values[3] === 'true' || false,
           voted_at: values[4] || null,
+        });
+      } else if (values[0]) {
+        // Simple format: just a name
+        const fullName = values[0].trim();
+        if (!fullName) continue;
+        
+        const { first_name, last_name } = parseName(fullName);
+        if (!first_name) continue;
+        
+        const election_code = generateElectionCode(fullName, i + 1);
+        
+        voters.push({
+          election_code,
+          first_name,
+          last_name,
+          has_voted: false,
+          voted_at: null,
         });
       }
     }

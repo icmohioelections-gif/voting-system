@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { supabaseAdmin } from './supabase';
+import { generateElectionCode, parseName } from './election-codes';
 
 // Initialize Google Sheets API
 function getSheetsClient() {
@@ -46,14 +47,55 @@ export async function syncVotersFromSheets() {
       return { success: true, synced: 0 };
     }
 
-    // Process each row: election_code, first_name, last_name, has_voted, voted_at
-    const voters = rows.map((row) => ({
-      election_code: row[0]?.trim() || '',
-      first_name: row[1]?.trim() || '',
-      last_name: row[2]?.trim() || null,
-      has_voted: row[3] === 'TRUE' || row[3] === 'true' || row[3] === true,
-      voted_at: row[4] || null,
-    })).filter(v => v.election_code && v.first_name); // Filter out invalid rows
+    // Process rows - support multiple formats:
+    // Format 1: election_code, first_name, last_name, has_voted, voted_at (with header)
+    // Format 2: name (simple format - just names, generate codes)
+    
+    // Check if first row looks like a header (contains common header words)
+    const firstRow = rows[0] || [];
+    const isHeaderRow = firstRow.some(cell => {
+      const cellStr = String(cell || '').toLowerCase();
+      return cellStr.includes('election') || cellStr.includes('code') || 
+             cellStr.includes('first') || cellStr.includes('name') ||
+             cellStr.includes('last') || cellStr.includes('voted');
+    });
+    
+    const dataRows = isHeaderRow ? rows.slice(1) : rows;
+    
+    const voters = dataRows.map((row, index) => {
+      const rowIndex = isHeaderRow ? index + 2 : index + 1; // Account for header if present
+      
+      // Check if this is the detailed format (has election_code and first_name in separate columns)
+      if (row.length >= 2 && row[0] && row[1]) {
+        // Detailed format: election_code, first_name, last_name, has_voted, voted_at
+        return {
+          election_code: row[0]?.trim() || '',
+          first_name: row[1]?.trim() || '',
+          last_name: row[2]?.trim() || null,
+          has_voted: row[3] === 'TRUE' || row[3] === 'true' || row[3] === true,
+          voted_at: row[4] || null,
+        };
+      } else if (row[0]) {
+        // Simple format: just a name in first column
+        const fullName = String(row[0]).trim();
+        if (!fullName) return null;
+        
+        const { first_name, last_name } = parseName(fullName);
+        if (!first_name) return null;
+        
+        // Generate election code from name
+        const election_code = generateElectionCode(fullName, rowIndex);
+        
+        return {
+          election_code,
+          first_name,
+          last_name,
+          has_voted: false,
+          voted_at: null,
+        };
+      }
+      return null;
+    }).filter(v => v !== null && v.election_code && v.first_name); // Filter out invalid rows
 
     // Upsert voters into Supabase
     let synced = 0;
