@@ -44,48 +44,40 @@ export async function POST(request: NextRequest) {
 
     const { spreadsheetId, gid } = sheetInfo;
 
-    // Use CSV export URL (works for publicly accessible sheets)
-    // Format: https://docs.google.com/spreadsheets/d/{ID}/export?format=csv&gid={GID}
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
-
-    // Fetch CSV data
-    const csvResponse = await fetch(csvUrl);
-    
-    if (!csvResponse.ok) {
-      // If CSV export fails, the sheet might not be public
-      // Try using the Sheets API if credentials are available
-      if (!process.env.GOOGLE_SHEETS_CLIENT_EMAIL || !process.env.GOOGLE_SHEETS_PRIVATE_KEY) {
-        return NextResponse.json(
-          { 
-            error: 'Sheet is not publicly accessible. Please make the sheet public (View permission) or set up Google Sheets API credentials.',
-            details: 'To make it public: Share → Change to "Anyone with the link" → Viewer'
-          },
-          { status: 403 }
-        );
-      }
+    // Try using the Sheets API first if credentials are available (more reliable)
+    if (process.env.GOOGLE_SHEETS_CLIENT_EMAIL && process.env.GOOGLE_SHEETS_PRIVATE_KEY) {
       
-      // Fall back to API method
       try {
         const { google } = await import('googleapis');
         const auth = new google.auth.JWT({
           email: process.env.GOOGLE_SHEETS_CLIENT_EMAIL,
           key: process.env.GOOGLE_SHEETS_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-          scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+          scopes: ['https://www.googleapis.com/auth/spreadsheets'],
         });
 
         const sheets = google.sheets({ version: 'v4', auth });
         
-        // First, try to get the sheet metadata to find the correct sheet name
+        // Get the sheet metadata to find the correct sheet by GID
         const metadataResponse = await sheets.spreadsheets.get({
           spreadsheetId,
         });
 
-        // Get the first sheet name (or use Sheet1 as fallback)
-        const sheetName = metadataResponse.data.sheets?.[0]?.properties?.title || 'Sheet1';
+        // Find the sheet by GID, or use the first sheet as fallback
+        const allSheets = metadataResponse.data.sheets || [];
+        let targetSheet = allSheets.find(sheet => 
+          sheet.properties?.sheetId?.toString() === gid
+        );
+        
+        // If GID not found or is '0', use the first sheet
+        if (!targetSheet && (gid === '0' || !allSheets.find(s => s.properties?.sheetId?.toString() === gid))) {
+          targetSheet = allSheets[0];
+        }
+        
+        const sheetName = targetSheet?.properties?.title || 'Sheet1';
         
         const response = await sheets.spreadsheets.values.get({
           spreadsheetId,
-          range: `${sheetName}!A2:E1000`, // Use the actual sheet name
+          range: `${sheetName}!A1:E1000`, // Start from row 1 to detect headers
         });
 
         const rows = response.data.values || [];
@@ -170,14 +162,35 @@ export async function POST(request: NextRequest) {
         });
       } catch (apiError) {
         return NextResponse.json(
-          { error: 'Failed to access Google Sheet. Make sure the sheet is public or API credentials are configured.', details: apiError instanceof Error ? apiError.message : 'Unknown error' },
+          { error: 'Failed to access Google Sheet using API. Please check your credentials and ensure the service account has access to the sheet.', details: apiError instanceof Error ? apiError.message : 'Unknown error' },
           { status: 500 }
         );
       }
     }
 
-    // Parse CSV data
-    const csvText = await csvResponse.text();
+    // Fall back to CSV export method (for publicly accessible sheets)
+    // Format: https://docs.google.com/spreadsheets/d/{ID}/export?format=csv&gid={GID}
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+
+    try {
+      // Fetch CSV data
+      const csvResponse = await fetch(csvUrl);
+      
+      // Check if response is actually CSV (not HTML error page)
+      const contentType = csvResponse.headers.get('content-type') || '';
+      const csvText = await csvResponse.text();
+      
+      if (!csvResponse.ok || !contentType.includes('text/csv') || csvText.trim().startsWith('<!DOCTYPE')) {
+        return NextResponse.json(
+          { 
+            error: 'Sheet is not publicly accessible. Please make the sheet public (View permission) or set up Google Sheets API credentials.',
+            details: 'To make it public: Share → Change to "Anyone with the link" → Viewer'
+          },
+          { status: 403 }
+        );
+      }
+
+      // Parse CSV data
     const lines = csvText.split('\n').filter(line => line.trim());
     
     if (lines.length < 2) {
@@ -257,12 +270,21 @@ export async function POST(request: NextRequest) {
       if (!error) synced++;
     }
 
-    return NextResponse.json({
-      success: true,
-      message: `Successfully synced ${synced} voters from Google Sheets`,
-      synced,
-      method: 'csv',
-    });
+      return NextResponse.json({
+        success: true,
+        message: `Successfully synced ${synced} voters from Google Sheets`,
+        synced,
+        method: 'csv',
+      });
+    } catch (csvError) {
+      return NextResponse.json(
+        { 
+          error: 'Failed to sync from Google Sheets. Please make the sheet public or set up API credentials.',
+          details: csvError instanceof Error ? csvError.message : 'Unknown error'
+        },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('Sync sheet URL error:', error);
     return NextResponse.json(
