@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 
 export async function GET() {
   try {
