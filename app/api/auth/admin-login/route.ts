@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
-// Simple admin credentials (user said they'll change this later)
-const ADMIN_EMAIL = 'admin@admin.com';
-const ADMIN_PASSWORD = 'admin';
+// Admin credentials from environment variables
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@admin.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 
 // Store admin sessions in memory (for production, use Redis or database)
 const adminSessions = new Map<string, { expiresAt: Date }>();
@@ -71,4 +71,5 @@ export function verifyAdminSession(sessionToken: string): boolean {
   
   return true;
 }
+
 

@@ -607,9 +607,35 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
 
               {/* Voters List */}
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
-                  All Voters ({voters.length})
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                    All Voters ({voters.length})
+                  </h2>
+                  <div className="flex gap-3">
+                    <a
+                      href="/api/admin/voters/export"
+                      download
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                      style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Download Excel
+                    </a>
+                    <a
+                      href="/api/admin/voters/letters"
+                      download
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                      style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Download Letters
+                    </a>
+                  </div>
+                </div>
                 {loading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>

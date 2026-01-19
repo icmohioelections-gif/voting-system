@@ -4,7 +4,7 @@ import Link from 'next/link';
 import CandidateCard from '@/components/CandidateCard';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Vote, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Vote, CheckCircle2, ArrowRight } from 'lucide-react';
 
 interface Candidate {
   id: string;
@@ -81,16 +81,6 @@ export default function Home() {
                     style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
                   >
                     Vote Now <Vote className="w-5 h-5" />
-                  </motion.button>
-                </Link>
-                <Link href="/admin/login">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="h-14 px-8 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium rounded-full text-lg border-2 border-gray-200 dark:border-gray-700 transition-all flex items-center gap-2"
-                    style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
-                  >
-                    Admin Access <Lock className="w-4 h-4" />
                   </motion.button>
                 </Link>
               </div>
