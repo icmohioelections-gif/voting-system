@@ -36,6 +36,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check election status
+    const { data: settings } = await supabaseAdmin
+      .from('election_settings')
+      .select('election_status, voting_period_days')
+      .eq('id', '00000000-0000-0000-0000-000000000000')
+      .single();
+
+    if (settings && settings.election_status === 'ended') {
+      return NextResponse.json(
+        { error: 'The election has ended. Voting is no longer available.' },
+        { status: 403 }
+      );
+    }
+
+    // Check voting period
+    const votingPeriodDays = settings?.voting_period_days || 5;
+    const votingStartDate = voter.voting_start_date ? new Date(voter.voting_start_date) : new Date(voter.created_at);
+    const now = new Date();
+    const daysSinceStart = (now.getTime() - votingStartDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    if (daysSinceStart > votingPeriodDays) {
+      return NextResponse.json(
+        { error: `Voting period has expired. You had ${votingPeriodDays} days to cast your vote.` },
+        { status: 403 }
+      );
+    }
+
     // Verify candidate exists
     const { data: candidate, error: candidateError } = await supabaseAdmin
       .from('candidates')

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 // Admin credentials from environment variables
+// IMPORTANT: Set ADMIN_EMAIL and ADMIN_PASSWORD in environment variables for production
+// Default credentials are for development only - CHANGE THEM in production!
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@admin.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 

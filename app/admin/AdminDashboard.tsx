@@ -68,6 +68,14 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
   const [sheetSyncMessage, setSheetSyncMessage] = useState('');
   const [resettingDb, setResettingDb] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
+  const [electionStatus, setElectionStatus] = useState<any>(null);
+  const [regeneratingCodes, setRegeneratingCodes] = useState(false);
+  const [regenerateMessage, setRegenerateMessage] = useState('');
+  const [validityDays, setValidityDays] = useState('5');
+  const [startingElection, setStartingElection] = useState(false);
+  const [startElectionMessage, setStartElectionMessage] = useState('');
+  const [endingElection, setEndingElection] = useState(false);
+  const [endElectionMessage, setEndElectionMessage] = useState('');
 
   const fetchResults = async () => {
     setLoading(true);
@@ -392,6 +400,119 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
     }
   };
 
+  const fetchElectionStatus = async () => {
+    try {
+      const res = await fetch('/api/admin/election/status');
+      const data = await res.json();
+      if (data.success) {
+        setElectionStatus(data);
+      }
+    } catch (err) {
+      console.error('Error fetching election status:', err);
+    }
+  };
+
+  const handleRegenerateCodes = async () => {
+    if (!validityDays || parseInt(validityDays) < 1 || parseInt(validityDays) > 365) {
+      setRegenerateMessage('✗ Please enter a valid number of days (1-365)');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to regenerate election codes? This will reset the voting period to ${validityDays} days for all voters.`)) {
+      return;
+    }
+
+    setRegeneratingCodes(true);
+    setRegenerateMessage('');
+
+    try {
+      const res = await fetch('/api/admin/election/regenerate-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ validity_days: parseInt(validityDays) }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setRegenerateMessage(`✓ ${data.message}`);
+        fetchElectionStatus();
+        fetchVoters();
+      } else {
+        setRegenerateMessage(`✗ Error: ${data.error}`);
+      }
+    } catch (error) {
+      setRegenerateMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to regenerate codes'}`);
+    } finally {
+      setRegeneratingCodes(false);
+    }
+  };
+
+  const handleStartElection = async () => {
+    if (!validityDays || parseInt(validityDays) < 1 || parseInt(validityDays) > 365) {
+      setStartElectionMessage('✗ Please enter a valid number of days (1-365)');
+      return;
+    }
+
+    if (!confirm(`Start the election with a ${validityDays}-day voting period?`)) {
+      return;
+    }
+
+    setStartingElection(true);
+    setStartElectionMessage('');
+
+    try {
+      const res = await fetch('/api/admin/election/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ validity_days: parseInt(validityDays) }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setStartElectionMessage(`✓ ${data.message}`);
+        fetchElectionStatus();
+        fetchVoters();
+      } else {
+        setStartElectionMessage(`✗ Error: ${data.error}`);
+      }
+    } catch (error) {
+      setStartElectionMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to start election'}`);
+    } finally {
+      setStartingElection(false);
+    }
+  };
+
+  const handleEndElection = async () => {
+    if (!confirm('Are you sure you want to end the election? This will prevent all voters from voting.')) {
+      return;
+    }
+
+    setEndingElection(true);
+    setEndElectionMessage('');
+
+    try {
+      const res = await fetch('/api/admin/election/end', {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setEndElectionMessage(`✓ ${data.message}`);
+        fetchElectionStatus();
+        fetchResults();
+      } else {
+        setEndElectionMessage(`✗ Error: ${data.error}`);
+      }
+    } catch (error) {
+      setEndElectionMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to end election'}`);
+    } finally {
+      setEndingElection(false);
+    }
+  };
+
   useEffect(() => {
     // Force logout any voter sessions when accessing admin
     const voterId = sessionStorage.getItem('voter_id');
@@ -408,6 +529,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
     if (activeTab === 'results') fetchResults();
     if (activeTab === 'voters') fetchVoters();
     if (activeTab === 'candidates') fetchCandidates();
+    if (activeTab === 'settings') fetchElectionStatus();
   }, [activeTab]);
 
   const handleTabChange = (tab: 'results' | 'voters' | 'candidates' | 'settings') => {
@@ -605,6 +727,78 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
                 </form>
               </div>
 
+              {/* Generate New Codes Section */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                  Generate New Election Codes
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                  Regenerate election codes for all voters. This will reset the voting period for all voters to the specified number of days starting from now.
+                </p>
+                <div className="flex items-end gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                      Validity Period (Days)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={validityDays}
+                        onChange={(e) => setValidityDays(e.target.value)}
+                        placeholder="5"
+                        className="w-32 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        disabled={regeneratingCodes}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setValidityDays('3')}
+                          disabled={regeneratingCodes}
+                          className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          3 Days
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setValidityDays('5')}
+                          disabled={regeneratingCodes}
+                          className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          5 Days
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setValidityDays('7')}
+                          disabled={regeneratingCodes}
+                          className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          7 Days
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleRegenerateCodes}
+                    disabled={regeneratingCodes}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                  >
+                    {regeneratingCodes ? 'Generating...' : 'Generate New Codes'}
+                  </button>
+                </div>
+                {regenerateMessage && (
+                  <div className={`mt-4 p-4 rounded-lg whitespace-pre-wrap ${
+                    regenerateMessage.startsWith('✓') 
+                      ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                      : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                  }`}>
+                    <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{regenerateMessage}</p>
+                  </div>
+                )}
+              </div>
+
               {/* Voters List */}
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -632,8 +826,18 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      Download Letters
+                      Bulk Download Letters
                     </a>
+                    <Link
+                      href="/admin/templates"
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                      style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit Templates
+                    </Link>
                   </div>
                 </div>
                 {loading ? (
@@ -955,6 +1159,235 @@ DEF456,Bob,`}
                       <li>Change access to "Anyone with the link" → "Viewer"</li>
                       <li>Copy the sheet URL and paste above</li>
                     </ol>
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+              {/* Election Management Section */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                  Election Management
+                </h2>
+                <div className="max-w-2xl space-y-6">
+                  {/* Election Status */}
+                  {electionStatus && (
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                        Current Status
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">Status:</span>
+                          <span className={`ml-2 font-semibold ${
+                            electionStatus.settings?.election_status === 'active' 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : electionStatus.settings?.election_status === 'ended'
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-gray-600 dark:text-gray-400'
+                          }`}>
+                            {electionStatus.settings?.election_status?.toUpperCase() || 'NOT STARTED'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">Voting Period:</span>
+                          <span className="ml-2 font-semibold text-gray-900 dark:text-white">
+                            {electionStatus.settings?.voting_period_days || 5} days
+                          </span>
+                        </div>
+                        {electionStatus.time_remaining && electionStatus.time_remaining.days > 0 && (
+                          <div className="col-span-2">
+                            <span className="text-gray-600 dark:text-gray-400">Time Remaining:</span>
+                            <span className="ml-2 font-semibold text-indigo-600 dark:text-indigo-400">
+                              {electionStatus.time_remaining.days} day(s)
+                            </span>
+                          </div>
+                        )}
+                        {electionStatus.statistics && (
+                          <>
+                            <div>
+                              <span className="text-gray-600 dark:text-gray-400">Total Voters:</span>
+                              <span className="ml-2 font-semibold text-gray-900 dark:text-white">
+                                {electionStatus.statistics.total_voters}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600 dark:text-gray-400">Votes Cast:</span>
+                              <span className="ml-2 font-semibold text-gray-900 dark:text-white">
+                                {electionStatus.statistics.votes_cast} ({electionStatus.statistics.turnout_percentage}%)
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Regenerate Codes */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                      Regenerate Election Codes
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                      Generate new election codes for all voters. This will reset the voting period for all voters to the specified number of days starting from now.
+                    </p>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                          Validity Period (Days)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="365"
+                            value={validityDays}
+                            onChange={(e) => setValidityDays(e.target.value)}
+                            placeholder="5"
+                            className="w-32 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                            disabled={regeneratingCodes}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setValidityDays('3')}
+                              disabled={regeneratingCodes}
+                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              3 Days
+                            </button>
+                            <button
+                              onClick={() => setValidityDays('5')}
+                              disabled={regeneratingCodes}
+                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              5 Days
+                            </button>
+                            <button
+                              onClick={() => setValidityDays('7')}
+                              disabled={regeneratingCodes}
+                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              7 Days
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleRegenerateCodes}
+                        disabled={regeneratingCodes}
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                      >
+                        {regeneratingCodes ? 'Regenerating...' : 'Regenerate Election Codes'}
+                      </button>
+                      {regenerateMessage && (
+                        <div className={`p-4 rounded-lg whitespace-pre-wrap ${
+                          regenerateMessage.startsWith('✓') 
+                            ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                            : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                        }`}>
+                          <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{regenerateMessage}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Start Election */}
+                  <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg border border-green-200 dark:border-green-800">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                      Start Election
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                      Start the election process. This will activate voting for all eligible voters (those who haven't voted yet) with the specified voting period.
+                    </p>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                          Voting Period (Days)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="365"
+                            value={validityDays}
+                            onChange={(e) => setValidityDays(e.target.value)}
+                            placeholder="5"
+                            className="w-32 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                            disabled={startingElection}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setValidityDays('3')}
+                              disabled={startingElection}
+                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              3 Days
+                            </button>
+                            <button
+                              onClick={() => setValidityDays('5')}
+                              disabled={startingElection}
+                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              5 Days
+                            </button>
+                            <button
+                              onClick={() => setValidityDays('7')}
+                              disabled={startingElection}
+                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              7 Days
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleStartElection}
+                        disabled={startingElection || (electionStatus?.settings?.election_status === 'active')}
+                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                      >
+                        {startingElection ? 'Starting...' : 'Start Election'}
+                      </button>
+                      {startElectionMessage && (
+                        <div className={`p-4 rounded-lg whitespace-pre-wrap ${
+                          startElectionMessage.startsWith('✓') 
+                            ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                            : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                        }`}>
+                          <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{startElectionMessage}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* End Election */}
+                  <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg border border-red-200 dark:border-red-800">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                      End Election
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                      End the election process. This will prevent all voters from voting and mark the election as completed.
+                    </p>
+                    <button
+                      onClick={handleEndElection}
+                      disabled={endingElection || (electionStatus?.settings?.election_status === 'ended')}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                    >
+                      {endingElection ? 'Ending...' : 'End Election'}
+                    </button>
+                    {endElectionMessage && (
+                      <div className={`mt-4 p-4 rounded-lg whitespace-pre-wrap ${
+                        endElectionMessage.startsWith('✓') 
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                          : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                      }`}>
+                        <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{endElectionMessage}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

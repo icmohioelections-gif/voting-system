@@ -11,6 +11,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table';
+import VoterActions from './VoterActions';
 
 interface Voter {
   id: string;
@@ -108,6 +109,14 @@ export default function VotersTable({ voters }: { voters: Voter[] }) {
               {value ? new Date(value).toLocaleString() : '-'}
             </span>
           );
+        },
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: (info) => {
+          const voter = info.row.original;
+          return <VoterActions electionCode={voter.election_code} />;
         },
       },
     ],

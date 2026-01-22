@@ -39,14 +39,30 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check 5-day voting window
+      // Get election settings to check voting period
+      const { data: settings } = await supabaseAdmin
+        .from('election_settings')
+        .select('voting_period_days, election_status')
+        .eq('id', '00000000-0000-0000-0000-000000000000')
+        .single();
+
+      // Check if election is active
+      if (settings && settings.election_status === 'ended') {
+        return NextResponse.json(
+          { error: 'The election has ended. Voting is no longer available.' },
+          { status: 403 }
+        );
+      }
+
+      // Check voting window (use configurable days, default to 5)
+      const votingPeriodDays = settings?.voting_period_days || 5;
       const votingStartDate = voter.voting_start_date ? new Date(voter.voting_start_date) : new Date(voter.created_at);
       const now = new Date();
       const daysSinceStart = (now.getTime() - votingStartDate.getTime()) / (1000 * 60 * 60 * 24);
       
-      if (daysSinceStart > 5) {
+      if (daysSinceStart > votingPeriodDays) {
         return NextResponse.json(
-          { error: 'Voting period has expired. You had 5 days to cast your vote.' },
+          { error: `Voting period has expired. You had ${votingPeriodDays} days to cast your vote.` },
           { status: 403 }
         );
       }
@@ -89,14 +105,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check 5-day voting window
+    // Get election settings to check voting period
+    const { data: settings } = await supabaseAdmin
+      .from('election_settings')
+      .select('voting_period_days, election_status')
+      .eq('id', '00000000-0000-0000-0000-000000000000')
+      .single();
+
+    // Check if election is active
+    if (settings && settings.election_status === 'ended') {
+      return NextResponse.json(
+        { error: 'The election has ended. Voting is no longer available.' },
+        { status: 403 }
+      );
+    }
+
+    // Check voting window (use configurable days, default to 5)
+    const votingPeriodDays = settings?.voting_period_days || 5;
     const votingStartDate = voter.voting_start_date ? new Date(voter.voting_start_date) : new Date(voter.created_at);
     const now = new Date();
     const daysSinceStart = (now.getTime() - votingStartDate.getTime()) / (1000 * 60 * 60 * 24);
     
-    if (daysSinceStart > 5) {
+    if (daysSinceStart > votingPeriodDays) {
       return NextResponse.json(
-        { error: 'Voting period has expired. You had 5 days to cast your vote.' },
+        { error: `Voting period has expired. You had ${votingPeriodDays} days to cast your vote.` },
         { status: 403 }
       );
     }
