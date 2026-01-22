@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { isAdminSessionValid } from '@/lib/admin-auth';
 
 // Dynamically import TinyMCE React component to avoid SSR issues
 // Using self-hosted GPL version (no API key needed)
@@ -32,10 +33,44 @@ export default function TemplatesPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [isNewTemplate, setIsNewTemplate] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    fetchTemplates();
-  }, []);
+    // Check admin authentication
+    const checkAuth = async () => {
+      const token = sessionStorage.getItem('admin_session_token');
+      if (!token) {
+        router.replace('/admin/login');
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/auth/verify-admin', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          router.replace('/admin/login');
+          return;
+        }
+        setIsAuthenticated(true);
+        setChecking(false);
+        fetchTemplates();
+      } catch (error) {
+        router.replace('/admin/login');
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  if (checking || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   const fetchTemplates = async () => {
     setLoading(true);

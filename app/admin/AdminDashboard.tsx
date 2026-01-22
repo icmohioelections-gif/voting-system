@@ -30,9 +30,9 @@ interface ResultItem {
   count: number;
 }
 
-export default function AdminDashboard({ activeTab: initialTab = 'results' }: { activeTab?: 'results' | 'voters' | 'candidates' | 'settings' }) {
+export default function AdminDashboard({ activeTab: initialTab = 'results' }: { activeTab?: 'results' | 'voters' | 'candidates' | 'settings' | 'templates' }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'results' | 'voters' | 'candidates' | 'settings'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'results' | 'voters' | 'candidates' | 'settings' | 'templates'>(initialTab);
 
   // Sync activeTab with initialTab prop (when route changes)
   useEffect(() => {
@@ -532,9 +532,13 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
     if (activeTab === 'settings') fetchElectionStatus();
   }, [activeTab]);
 
-  const handleTabChange = (tab: 'results' | 'voters' | 'candidates' | 'settings') => {
+  const handleTabChange = (tab: 'results' | 'voters' | 'candidates' | 'settings' | 'templates') => {
     setActiveTab(tab);
-    router.push(`/admin/${tab}`);
+    if (tab === 'templates') {
+      router.push('/admin/templates');
+    } else {
+      router.push(`/admin/${tab}`);
+    }
   };
 
   const handleLogout = () => {
@@ -564,7 +568,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
           {/* Tabs */}
           <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
             <nav className="-mb-px flex space-x-8">
-              {(['results', 'voters', 'candidates', 'settings'] as const).map((tab) => (
+              {(['results', 'voters', 'candidates', 'templates', 'settings'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab)}
