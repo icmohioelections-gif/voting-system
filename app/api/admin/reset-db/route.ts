@@ -17,16 +17,21 @@ export async function POST() {
       );
     }
 
-    // Delete all voters
+    // Reset all voters' vote status (but keep the voters)
     const { error: votersError } = await supabaseAdmin
       .from('voters')
-      .delete()
+      .update({
+        has_voted: false,
+        voted_at: null,
+        voting_start_date: null,
+        updated_at: new Date().toISOString(),
+      })
       .neq('id', '00000000-0000-0000-0000-000000000000');
 
     if (votersError) {
-      console.error('Error deleting voters:', votersError);
+      console.error('Error resetting voters:', votersError);
       return NextResponse.json(
-        { error: 'Failed to delete voters', details: votersError.message },
+        { error: 'Failed to reset voters', details: votersError.message },
         { status: 500 }
       );
     }
@@ -47,7 +52,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: 'Database reset successfully. All votes, voters, and candidates have been deleted.',
+      message: 'Database reset successfully. All votes and candidates have been deleted. Voters have been preserved but their vote status has been reset.',
     });
   } catch (error) {
     console.error('Reset DB error:', error);

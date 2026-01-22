@@ -13,7 +13,7 @@ export default function AdminTabPage() {
   const [checking, setChecking] = useState(true);
 
   // Valid tabs
-  const validTabs = ['results', 'voters', 'candidates', 'settings'];
+  const validTabs = ['results', 'voters', 'candidates', 'settings', 'templates'];
   
   useEffect(() => {
     // Check admin authentication
@@ -37,9 +37,11 @@ export default function AdminTabPage() {
 
     checkAuth();
     
-    // Redirect to results if invalid tab
+    // Redirect to results if invalid tab (but allow templates to go to its own page)
     if (tab && !validTabs.includes(tab)) {
       router.replace('/admin/results');
+    } else if (tab === 'templates') {
+      router.replace('/admin/templates');
     }
   }, [tab, router]);
 
@@ -52,8 +54,8 @@ export default function AdminTabPage() {
   }
 
   // If no tab or invalid tab, show results by default
-  const activeTab = (tab && validTabs.includes(tab)) ? tab : 'results';
+  const activeTab = (tab && validTabs.includes(tab) && tab !== 'templates') ? tab : 'results';
 
-  return <AdminDashboard activeTab={activeTab as 'results' | 'voters' | 'candidates' | 'settings'} />;
+  return <AdminDashboard activeTab={activeTab as 'results' | 'voters' | 'candidates' | 'settings' | 'templates'} />;
 }
 

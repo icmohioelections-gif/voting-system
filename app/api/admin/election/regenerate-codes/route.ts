@@ -28,24 +28,37 @@ export async function POST(request: NextRequest) {
 
     // Update or create election settings
     const newStartDate = new Date().toISOString();
+    
+    // First try to update existing record
     const { error: updateError } = await supabaseAdmin
       .from('election_settings')
-      .upsert({
-        id: '00000000-0000-0000-0000-000000000000',
+      .update({
         voting_period_days: days,
         election_status: 'active',
         election_start_date: newStartDate,
         updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id'
-      });
+      })
+      .eq('id', '00000000-0000-0000-0000-000000000000');
 
+    // If update failed (record doesn't exist), insert it
     if (updateError) {
-      console.error('Error updating election settings:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to update election settings' },
-        { status: 500 }
-      );
+      const { error: insertError } = await supabaseAdmin
+        .from('election_settings')
+        .insert({
+          id: '00000000-0000-0000-0000-000000000000',
+          voting_period_days: days,
+          election_status: 'active',
+          election_start_date: newStartDate,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (insertError) {
+        console.error('Error creating election settings:', insertError);
+        return NextResponse.json(
+          { error: 'Failed to create election settings. Please ensure the election_settings table exists.', details: insertError.message },
+          { status: 500 }
+        );
+      }
     }
 
     // Regenerate codes by updating voting_start_date for all voters

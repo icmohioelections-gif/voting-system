@@ -6,23 +6,35 @@ export async function POST(request: NextRequest) {
     const endDate = new Date().toISOString();
 
     // Update election settings to mark as ended
+    // First try to update existing record
     const { error: updateError } = await supabaseAdmin
       .from('election_settings')
-      .upsert({
-        id: '00000000-0000-0000-0000-000000000000',
+      .update({
         election_status: 'ended',
         election_end_date: endDate,
         updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id'
-      });
+      })
+      .eq('id', '00000000-0000-0000-0000-000000000000');
 
+    // If update failed (record doesn't exist), insert it
     if (updateError) {
-      console.error('Error updating election settings:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to end election' },
-        { status: 500 }
-      );
+      const { error: insertError } = await supabaseAdmin
+        .from('election_settings')
+        .insert({
+          id: '00000000-0000-0000-0000-000000000000',
+          voting_period_days: 5,
+          election_status: 'ended',
+          election_end_date: endDate,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (insertError) {
+        console.error('Error creating election settings:', insertError);
+        return NextResponse.json(
+          { error: 'Failed to end election. Please ensure the election_settings table exists.', details: insertError.message },
+          { status: 500 }
+        );
+      }
     }
 
     // Get statistics

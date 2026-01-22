@@ -26,4 +26,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const sessionToken = authHeader?.replace('Bearer ', '') || 
+                        new URL(request.url).searchParams.get('token');
+
+    if (!sessionToken) {
+      return NextResponse.json(
+        { valid: false, error: 'Session token required' },
+        { status: 400 }
+      );
+    }
+
+    const isValid = verifyAdminSession(sessionToken);
+
+    return NextResponse.json({
+      valid: isValid,
+    });
+  } catch (error) {
+    console.error('Admin session verification error:', error);
+    return NextResponse.json(
+      { valid: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 

@@ -76,6 +76,8 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
   const [startElectionMessage, setStartElectionMessage] = useState('');
   const [endingElection, setEndingElection] = useState(false);
   const [endElectionMessage, setEndElectionMessage] = useState('');
+  const [resettingVotes, setResettingVotes] = useState(false);
+  const [resetVotesMessage, setResetVotesMessage] = useState('');
 
   const fetchResults = async () => {
     setLoading(true);
@@ -365,8 +367,38 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
     }
   };
 
+  const handleResetVoteStatus = async () => {
+    if (!confirm('Are you sure you want to reset all vote statuses? This will mark all voters as not voted, allowing them to vote again. This is useful for testing.')) {
+      return;
+    }
+
+    setResettingVotes(true);
+    setResetVotesMessage('');
+
+    try {
+      const res = await fetch('/api/admin/reset-vote-status', {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setResetVotesMessage(`✓ ${data.message}`);
+        // Refresh all data
+        fetchResults();
+        fetchVoters();
+      } else {
+        setResetVotesMessage(`✗ Error: ${data.error}${data.details ? '\n' + data.details : ''}`);
+      }
+    } catch (error) {
+      setResetVotesMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to reset vote status'}`);
+    } finally {
+      setResettingVotes(false);
+    }
+  };
+
   const handleResetDb = async () => {
-    if (!confirm('Are you sure you want to delete ALL data? This will remove all votes, voters, and candidates. This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to reset the database? This will delete all votes and candidates, but preserve all voters (their vote status will be reset). This action cannot be undone.')) {
       return;
     }
 
@@ -1410,16 +1442,38 @@ DEF456,Bob,`}
                       ⚠️ Warning: This action cannot be undone
                     </p>
                     <p className="text-red-700 dark:text-red-300 text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
-                      Resetting the database will permanently delete ALL votes, voters, and candidates. Use this to start fresh with a clean database.
+                      Resetting the database will delete ALL votes and candidates, but preserve all voters (their vote status will be reset). Use this to start fresh while keeping your voter list.
                     </p>
                   </div>
+                  
+                  {/* Reset Vote Status Button */}
+                  <div className="mb-4">
+                    <button
+                      onClick={handleResetVoteStatus}
+                      disabled={resettingVotes}
+                      className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                    >
+                      {resettingVotes ? 'Resetting...' : 'Reset Vote Status (For Testing)'}
+                    </button>
+                    {resetVotesMessage && (
+                      <div className={`mt-4 p-4 rounded-lg whitespace-pre-wrap ${
+                        resetVotesMessage.startsWith('✓') 
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
+                          : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                      }`}>
+                        <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{resetVotesMessage}</p>
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     onClick={handleResetDb}
                     disabled={resettingDb}
                     className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                     style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
                   >
-                    {resettingDb ? 'Resetting...' : 'Reset Database (Delete All Data)'}
+                    {resettingDb ? 'Resetting...' : 'Reset Database (Delete Votes & Candidates)'}
                   </button>
                   {resetMessage && (
                     <div className={`mt-4 p-4 rounded-lg whitespace-pre-wrap ${
@@ -1431,6 +1485,26 @@ DEF456,Bob,`}
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Templates Tab */}
+          {activeTab === 'templates' && (
+            <div>
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-6">
+                <p className="text-sm text-blue-900 dark:text-blue-300">
+                  Edit the default letter template used for all voter communications. Use variables like {'{{full_name}}'}, {'{{election_code}}'}, etc.
+                </p>
+              </div>
+              <div className="text-center py-8">
+                <Link
+                  href="/admin/templates"
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors inline-block"
+                  style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                >
+                  Open Template Editor
+                </Link>
               </div>
             </div>
           )}
