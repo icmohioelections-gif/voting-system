@@ -13,7 +13,7 @@ export default function AdminTabPage() {
   const [checking, setChecking] = useState(true);
 
   // Valid tabs
-  const validTabs = ['results', 'voters', 'candidates', 'settings', 'templates'];
+  const validTabs = ['results', 'voters', 'candidates', 'settings'];
   
   useEffect(() => {
     // Check admin authentication
@@ -54,6 +54,6 @@ export default function AdminTabPage() {
   // If no tab or invalid tab, show results by default
   const activeTab = (tab && validTabs.includes(tab)) ? tab : 'results';
 
-  return <AdminDashboard activeTab={activeTab as 'results' | 'voters' | 'candidates' | 'settings' | 'templates'} />;
+  return <AdminDashboard activeTab={activeTab as 'results' | 'voters' | 'candidates' | 'settings'} />;
 }
 

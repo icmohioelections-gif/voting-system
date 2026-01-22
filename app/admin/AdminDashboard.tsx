@@ -575,8 +575,10 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
     if (activeTab === 'results') fetchResults();
     if (activeTab === 'voters') fetchVoters();
     if (activeTab === 'candidates') fetchCandidates();
-    if (activeTab === 'settings') fetchElectionStatus();
-    if (activeTab === 'templates') fetchTemplate();
+    if (activeTab === 'settings') {
+      fetchElectionStatus();
+      fetchTemplate();
+    }
   }, [activeTab]);
 
   const fetchTemplate = async () => {
@@ -692,7 +694,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
           {/* Tabs */}
           <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
             <nav className="-mb-px flex space-x-8">
-              {(['results', 'voters', 'candidates', 'templates', 'settings'] as const).map((tab) => (
+              {(['results', 'voters', 'candidates', 'settings'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab)}
@@ -1523,6 +1525,89 @@ DEF456,Bob,`}
               {/* Divider */}
               <div className="border-t border-gray-200 dark:border-gray-700"></div>
 
+              {/* Letter Templates */}
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                  Letter Templates
+                </h2>
+                <div className="max-w-4xl space-y-6">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                    <p className="text-sm text-blue-900 dark:text-blue-300">
+                      <strong>Default Template:</strong> This is the only template used for all voter letters. Edit the content below and save to update.
+                    </p>
+                  </div>
+
+                  {/* Template Variables Info */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-sm">
+                    <p className="font-semibold text-blue-900 dark:text-blue-300 mb-2">Available Variables:</p>
+                    <div className="grid grid-cols-2 gap-2 text-blue-800 dark:text-blue-400">
+                      <code>{'{{full_name}}'}</code>
+                      <code>{'{{first_name}}'}</code>
+                      <code>{'{{last_name}}'}</code>
+                      <code>{'{{election_code}}'}</code>
+                    </div>
+                    <p className="text-xs text-blue-700 dark:text-blue-500 mt-2">
+                      Conditional: {'{{#last_name}}'} content {'{{/last_name}}'} (only shows if last_name exists)
+                    </p>
+                  </div>
+
+                  {/* TinyMCE Editor */}
+                  {templateLoading ? (
+                    <div className="h-[600px] bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                    </div>
+                  ) : (
+                    <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+                      <Editor
+                        licenseKey="gpl"
+                        onInit={(evt, editor) => setTemplateEditorRef(editor)}
+                        initialValue={templateContent}
+                        init={{
+                          height: 600,
+                          menubar: true,
+                          plugins: [
+                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                            'insertdatetime', 'media', 'table', 'help', 'wordcount'
+                          ],
+                          toolbar: 'undo redo | blocks | ' +
+                            'bold italic forecolor | alignleft aligncenter ' +
+                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                            'removeformat | help',
+                          content_style: 'body { font-family: Arial, sans-serif; font-size: 14px }',
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleSaveTemplate}
+                      disabled={templateSaving || templateLoading}
+                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                    >
+                      {templateSaving ? 'Saving...' : 'Save Template'}
+                    </button>
+                  </div>
+
+                  {/* Message */}
+                  {templateMessage && (
+                    <div className={`p-4 rounded-lg ${
+                      templateMessage.startsWith('✓')
+                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                    }`}>
+                      <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{templateMessage}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
               {/* Database Reset */}
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
@@ -1581,82 +1666,6 @@ DEF456,Bob,`}
             </div>
           )}
 
-          {/* Templates Tab */}
-          {activeTab === 'templates' && (
-            <div className="space-y-6">
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                <p className="text-sm text-blue-900 dark:text-blue-300">
-                  <strong>Default Template:</strong> This is the only template used for all voter letters. Edit the content below and save to update.
-                </p>
-              </div>
-
-              {/* Template Variables Info */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-sm">
-                <p className="font-semibold text-blue-900 dark:text-blue-300 mb-2">Available Variables:</p>
-                <div className="grid grid-cols-2 gap-2 text-blue-800 dark:text-blue-400">
-                  <code>{'{{full_name}}'}</code>
-                  <code>{'{{first_name}}'}</code>
-                  <code>{'{{last_name}}'}</code>
-                  <code>{'{{election_code}}'}</code>
-                </div>
-                <p className="text-xs text-blue-700 dark:text-blue-500 mt-2">
-                  Conditional: {'{{#last_name}}'} content {'{{/last_name}}'} (only shows if last_name exists)
-                </p>
-              </div>
-
-              {/* TinyMCE Editor */}
-              {templateLoading ? (
-                <div className="h-[600px] bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-                </div>
-              ) : (
-                <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
-                  <Editor
-                    licenseKey="gpl"
-                    onInit={(evt, editor) => setTemplateEditorRef(editor)}
-                    initialValue={templateContent}
-                    init={{
-                      height: 600,
-                      menubar: true,
-                      plugins: [
-                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                        'insertdatetime', 'media', 'table', 'help', 'wordcount'
-                      ],
-                      toolbar: 'undo redo | blocks | ' +
-                        'bold italic forecolor | alignleft aligncenter ' +
-                        'alignright alignjustify | bullist numlist outdent indent | ' +
-                        'removeformat | help',
-                      content_style: 'body { font-family: Arial, sans-serif; font-size: 14px }',
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleSaveTemplate}
-                  disabled={templateSaving || templateLoading}
-                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
-                >
-                  {templateSaving ? 'Saving...' : 'Save Template'}
-                </button>
-              </div>
-
-              {/* Message */}
-              {templateMessage && (
-                <div className={`p-4 rounded-lg ${
-                  templateMessage.startsWith('✓')
-                    ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300'
-                    : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
-                }`}>
-                  <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{templateMessage}</p>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="mt-6 text-center">
