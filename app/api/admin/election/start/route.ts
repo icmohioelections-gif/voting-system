@@ -17,25 +17,60 @@ export async function POST(request: NextRequest) {
     const startDate = new Date().toISOString();
 
     // Update or create election settings
+    // First try to update existing record
     const { error: updateError } = await supabaseAdmin
       .from('election_settings')
-      .upsert({
-        id: '00000000-0000-0000-0000-000000000000',
+      .update({
         voting_period_days: days,
         election_status: 'active',
         election_start_date: startDate,
         election_end_date: null,
         updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id'
-      });
+      })
+      .eq('id', '00000000-0000-0000-0000-000000000000');
 
+    // If update failed (record doesn't exist), insert it
     if (updateError) {
-      console.error('Error updating election settings:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to start election' },
-        { status: 500 }
-      );
+      // Check if error is because table doesn't exist
+      if (updateError.code === 'PGRST116' || updateError.message?.includes('relation') || updateError.message?.includes('does not exist')) {
+        // Try to insert
+        const { error: insertError } = await supabaseAdmin
+          .from('election_settings')
+          .insert({
+            id: '00000000-0000-0000-0000-000000000000',
+            voting_period_days: days,
+            election_status: 'active',
+            election_start_date: startDate,
+            election_end_date: null,
+            updated_at: new Date().toISOString(),
+          });
+
+        if (insertError) {
+          console.error('Error creating election settings:', insertError);
+          // If insert also fails, likely table doesn't exist
+          if (insertError.message?.includes('relation') || insertError.message?.includes('does not exist')) {
+            return NextResponse.json(
+              { 
+                error: 'The election_settings table does not exist. Please run the migration: supabase/migration_election_settings.sql',
+                details: 'Run this SQL in Supabase SQL Editor to create the table.',
+                migration_file: 'supabase/migration_election_settings.sql'
+              },
+              { status: 500 }
+            );
+          }
+          return NextResponse.json(
+            { error: 'Failed to start election.', details: insertError.message },
+            { status: 500 }
+          );
+        }
+      } else {
+        // Other update error
+        console.error('Error updating election settings:', updateError);
+        return NextResponse.json(
+          { error: 'Failed to start election.', details: updateError.message },
+          { status: 500 }
+        );
+      }
     }
 
     // Update voting_start_date for all voters who haven't voted yet

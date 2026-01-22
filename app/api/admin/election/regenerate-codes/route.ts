@@ -42,20 +42,42 @@ export async function POST(request: NextRequest) {
 
     // If update failed (record doesn't exist), insert it
     if (updateError) {
-      const { error: insertError } = await supabaseAdmin
-        .from('election_settings')
-        .insert({
-          id: '00000000-0000-0000-0000-000000000000',
-          voting_period_days: days,
-          election_status: 'active',
-          election_start_date: newStartDate,
-          updated_at: new Date().toISOString(),
-        });
+      // Check if error is because table doesn't exist or record doesn't exist
+      if (updateError.code === 'PGRST116' || updateError.message?.includes('relation') || updateError.message?.includes('does not exist')) {
+        // Try to insert
+        const { error: insertError } = await supabaseAdmin
+          .from('election_settings')
+          .insert({
+            id: '00000000-0000-0000-0000-000000000000',
+            voting_period_days: days,
+            election_status: 'active',
+            election_start_date: newStartDate,
+            updated_at: new Date().toISOString(),
+          });
 
-      if (insertError) {
-        console.error('Error creating election settings:', insertError);
+        if (insertError) {
+          console.error('Error creating election settings:', insertError);
+          // If insert also fails, likely table doesn't exist
+          if (insertError.message?.includes('relation') || insertError.message?.includes('does not exist')) {
+            return NextResponse.json(
+              { 
+                error: 'The election_settings table does not exist. Please run the migration: supabase/migration_election_settings.sql',
+                details: 'Run this SQL in Supabase SQL Editor to create the table.',
+                migration_file: 'supabase/migration_election_settings.sql'
+              },
+              { status: 500 }
+            );
+          }
+          return NextResponse.json(
+            { error: 'Failed to create election settings.', details: insertError.message },
+            { status: 500 }
+          );
+        }
+      } else {
+        // Other update error
+        console.error('Error updating election settings:', updateError);
         return NextResponse.json(
-          { error: 'Failed to create election settings. Please ensure the election_settings table exists.', details: insertError.message },
+          { error: 'Failed to update election settings.', details: updateError.message },
           { status: 500 }
         );
       }
