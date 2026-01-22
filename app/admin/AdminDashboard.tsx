@@ -3,15 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import VotersTable from '@/components/admin/VotersTable';
 import { clearAdminSession } from '@/lib/admin-auth';
-
-// Dynamically import TinyMCE React component to avoid SSR issues
-const Editor = dynamic(() => import('@tinymce/tinymce-react').then(mod => mod.Editor), {
-  ssr: false,
-  loading: () => <div className="h-[600px] bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">Loading editor...</div>
-});
+import QuillEditor from '@/components/admin/QuillEditor';
 
 interface Candidate {
   id: string;
@@ -86,7 +80,6 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
   const [resettingVotes, setResettingVotes] = useState(false);
   const [resetVotesMessage, setResetVotesMessage] = useState('');
   // Templates state
-  const [templateEditorRef, setTemplateEditorRef] = useState<any>(null);
   const [templateContent, setTemplateContent] = useState<string>('');
   const [templateLoading, setTemplateLoading] = useState(false);
   const [templateSaving, setTemplateSaving] = useState(false);
@@ -588,13 +581,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
       const data = await res.json();
       if (data.success && data.template) {
         setTemplateId(data.template.id);
-        setTemplateContent(data.template.content);
-        // Set editor content after a short delay
-        setTimeout(() => {
-          if (templateEditorRef) {
-            templateEditorRef.setContent(data.template.content);
-          }
-        }, 200);
+        setTemplateContent(data.template.content || '');
       }
     } catch (error) {
       console.error('Error fetching template:', error);
@@ -605,8 +592,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
   };
 
   const handleSaveTemplate = async () => {
-    const content = templateEditorRef?.getContent() || '';
-    if (!content.trim()) {
+    if (!templateContent.trim()) {
       setTemplateMessage('✗ Template content is required');
       return;
     }
@@ -623,7 +609,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
           body: JSON.stringify({
             id: templateId,
             name: 'Default Template',
-            content,
+            content: templateContent,
             is_default: true,
           }),
         });
@@ -642,7 +628,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: 'Default Template',
-            content,
+            content: templateContent,
             is_default: true,
           }),
         });
@@ -1551,31 +1537,16 @@ DEF456,Bob,`}
                     </p>
                   </div>
 
-                  {/* TinyMCE Editor */}
+                  {/* React Quill Editor */}
                   {templateLoading ? (
                     <div className="h-[600px] bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
                     </div>
                   ) : (
-                    <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
-                      <Editor
-                        licenseKey="gpl"
-                        onInit={(evt, editor) => setTemplateEditorRef(editor)}
-                        initialValue={templateContent}
-                        init={{
-                          height: 600,
-                          menubar: true,
-                          plugins: [
-                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                            'insertdatetime', 'media', 'table', 'help', 'wordcount'
-                          ],
-                          toolbar: 'undo redo | blocks | ' +
-                            'bold italic forecolor | alignleft aligncenter ' +
-                            'alignright alignjustify | bullist numlist outdent indent | ' +
-                            'removeformat | help',
-                          content_style: 'body { font-family: Arial, sans-serif; font-size: 14px }',
-                        }}
+                    <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
+                      <QuillEditor
+                        value={templateContent}
+                        onChange={setTemplateContent}
                       />
                     </div>
                   )}
