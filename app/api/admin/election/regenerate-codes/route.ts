@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { generateElectionCode } from '@/lib/election-codes';
 
 export async function POST(request: NextRequest) {
   try {
@@ -111,20 +112,23 @@ export async function POST(request: NextRequest) {
     const updates = allVoters.map((voter, index) => {
       const fullName = `${voter.first_name} ${voter.last_name || ''}`.trim();
       
-      // Generate a new unique code
+      // Generate a new unique code using the existing function
       let newCode: string;
       let attempts = 0;
       do {
-        // Generate code based on name + timestamp + random
-        const timestamp = Date.now().toString(36).slice(-4).toUpperCase();
-        const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-        const namePart = fullName.replace(/\s+/g, '').substring(0, 4).toUpperCase();
-        newCode = `${namePart}${timestamp}${random}`.substring(0, 10);
+        // Use the generateElectionCode function with index to ensure uniqueness
+        newCode = generateElectionCode(fullName, index + Date.now());
         attempts++;
         
-        // Fallback if we can't generate unique
-        if (attempts > 10) {
-          newCode = `VOTE${Date.now().toString().slice(-6)}${index}`.substring(0, 10);
+        // If still duplicate, add timestamp
+        if (usedCodes.has(newCode) && attempts < 10) {
+          newCode = generateElectionCode(`${fullName}${Date.now()}`, index);
+        }
+        
+        // Final fallback
+        if (attempts >= 10) {
+          const timestamp = Date.now().toString(36).slice(-4).toUpperCase();
+          newCode = `${fullName.replace(/\s+/g, '').substring(0, 6).toUpperCase()}${timestamp}`.substring(0, 10);
         }
       } while (usedCodes.has(newCode) && attempts < 20);
       

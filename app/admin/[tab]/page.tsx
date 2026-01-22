@@ -37,11 +37,9 @@ export default function AdminTabPage() {
 
     checkAuth();
     
-    // Redirect to results if invalid tab (but allow templates to go to its own page)
+    // Redirect to results if invalid tab
     if (tab && !validTabs.includes(tab)) {
       router.replace('/admin/results');
-    } else if (tab === 'templates') {
-      router.replace('/admin/templates');
     }
   }, [tab, router]);
 

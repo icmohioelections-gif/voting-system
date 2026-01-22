@@ -1,10 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import VotersTable from '@/components/admin/VotersTable';
 import { clearAdminSession } from '@/lib/admin-auth';
+
+// Dynamically import TinyMCE React component to avoid SSR issues
+const Editor = dynamic(() => import('@tinymce/tinymce-react').then(mod => mod.Editor), {
+  ssr: false,
+  loading: () => <div className="h-[600px] bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">Loading editor...</div>
+});
 
 interface Candidate {
   id: string;
@@ -78,6 +85,13 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
   const [endElectionMessage, setEndElectionMessage] = useState('');
   const [resettingVotes, setResettingVotes] = useState(false);
   const [resetVotesMessage, setResetVotesMessage] = useState('');
+  // Templates state
+  const [templateEditorRef, setTemplateEditorRef] = useState<any>(null);
+  const [templateContent, setTemplateContent] = useState<string>('');
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateMessage, setTemplateMessage] = useState('');
+  const [templateId, setTemplateId] = useState<string | null>(null);
 
   const fetchResults = async () => {
     setLoading(true);
@@ -562,15 +576,93 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
     if (activeTab === 'voters') fetchVoters();
     if (activeTab === 'candidates') fetchCandidates();
     if (activeTab === 'settings') fetchElectionStatus();
+    if (activeTab === 'templates') fetchTemplate();
   }, [activeTab]);
+
+  const fetchTemplate = async () => {
+    setTemplateLoading(true);
+    try {
+      const res = await fetch('/api/admin/letter-templates?default=true');
+      const data = await res.json();
+      if (data.success && data.template) {
+        setTemplateId(data.template.id);
+        setTemplateContent(data.template.content);
+        // Set editor content after a short delay
+        setTimeout(() => {
+          if (templateEditorRef) {
+            templateEditorRef.setContent(data.template.content);
+          }
+        }, 200);
+      }
+    } catch (error) {
+      console.error('Error fetching template:', error);
+      setTemplateMessage('✗ Failed to load template');
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    const content = templateEditorRef?.getContent() || '';
+    if (!content.trim()) {
+      setTemplateMessage('✗ Template content is required');
+      return;
+    }
+
+    setTemplateSaving(true);
+    setTemplateMessage('');
+
+    try {
+      if (templateId) {
+        // Update existing template
+        const res = await fetch('/api/admin/letter-templates', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: templateId,
+            name: 'Default Template',
+            content,
+            is_default: true,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          setTemplateMessage('✓ Template saved successfully');
+          await fetchTemplate();
+        } else {
+          setTemplateMessage(`✗ Error: ${data.error}`);
+        }
+      } else {
+        // Create new template
+        const res = await fetch('/api/admin/letter-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Default Template',
+            content,
+            is_default: true,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          setTemplateMessage('✓ Template created successfully');
+          await fetchTemplate();
+        } else {
+          setTemplateMessage(`✗ Error: ${data.error}`);
+        }
+      }
+    } catch (error) {
+      setTemplateMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to save template'}`);
+    } finally {
+      setTemplateSaving(false);
+    }
+  };
 
   const handleTabChange = (tab: 'results' | 'voters' | 'candidates' | 'settings' | 'templates') => {
     setActiveTab(tab);
-    if (tab === 'templates') {
-      router.push('/admin/templates');
-    } else {
-      router.push(`/admin/${tab}`);
-    }
+    router.push(`/admin/${tab}`);
   };
 
   const handleLogout = () => {
@@ -1491,21 +1583,78 @@ DEF456,Bob,`}
 
           {/* Templates Tab */}
           {activeTab === 'templates' && (
-            <div>
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-6">
+            <div className="space-y-6">
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                 <p className="text-sm text-blue-900 dark:text-blue-300">
-                  Edit the default letter template used for all voter communications. Use variables like {'{{full_name}}'}, {'{{election_code}}'}, etc.
+                  <strong>Default Template:</strong> This is the only template used for all voter letters. Edit the content below and save to update.
                 </p>
               </div>
-              <div className="text-center py-8">
-                <Link
-                  href="/admin/templates"
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors inline-block"
+
+              {/* Template Variables Info */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-sm">
+                <p className="font-semibold text-blue-900 dark:text-blue-300 mb-2">Available Variables:</p>
+                <div className="grid grid-cols-2 gap-2 text-blue-800 dark:text-blue-400">
+                  <code>{'{{full_name}}'}</code>
+                  <code>{'{{first_name}}'}</code>
+                  <code>{'{{last_name}}'}</code>
+                  <code>{'{{election_code}}'}</code>
+                </div>
+                <p className="text-xs text-blue-700 dark:text-blue-500 mt-2">
+                  Conditional: {'{{#last_name}}'} content {'{{/last_name}}'} (only shows if last_name exists)
+                </p>
+              </div>
+
+              {/* TinyMCE Editor */}
+              {templateLoading ? (
+                <div className="h-[600px] bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                </div>
+              ) : (
+                <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+                  <Editor
+                    licenseKey="gpl"
+                    onInit={(evt, editor) => setTemplateEditorRef(editor)}
+                    initialValue={templateContent}
+                    init={{
+                      height: 600,
+                      menubar: true,
+                      plugins: [
+                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                        'insertdatetime', 'media', 'table', 'help', 'wordcount'
+                      ],
+                      toolbar: 'undo redo | blocks | ' +
+                        'bold italic forecolor | alignleft aligncenter ' +
+                        'alignright alignjustify | bullist numlist outdent indent | ' +
+                        'removeformat | help',
+                      content_style: 'body { font-family: Arial, sans-serif; font-size: 14px }',
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSaveTemplate}
+                  disabled={templateSaving || templateLoading}
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
                 >
-                  Open Template Editor
-                </Link>
+                  {templateSaving ? 'Saving...' : 'Save Template'}
+                </button>
               </div>
+
+              {/* Message */}
+              {templateMessage && (
+                <div className={`p-4 rounded-lg ${
+                  templateMessage.startsWith('✓')
+                    ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+                    : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                }`}>
+                  <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{templateMessage}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
