@@ -83,35 +83,86 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Regenerate codes by updating voting_start_date for all voters
-    // This effectively resets the voting period for all voters
-    const { error: votersError } = await supabaseAdmin
+    // Get all voters to regenerate codes
+    const { data: allVoters, error: fetchError } = await supabaseAdmin
       .from('voters')
-      .update({
-        voting_start_date: newStartDate,
-        updated_at: new Date().toISOString(),
-      })
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Update all voters
+      .select('id, first_name, last_name');
 
-    if (votersError) {
-      console.error('Error updating voters:', votersError);
+    if (fetchError) {
+      console.error('Error fetching voters:', fetchError);
       return NextResponse.json(
-        { error: 'Failed to regenerate codes for voters' },
+        { error: 'Failed to fetch voters' },
         { status: 500 }
       );
     }
 
-    // Get count of updated voters
-    const { count } = await supabaseAdmin
-      .from('voters')
-      .select('*', { count: 'exact', head: true });
+    if (!allVoters || allVoters.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No voters found to regenerate codes.',
+        validity_days: days,
+        start_date: newStartDate,
+        voters_updated: 0,
+      });
+    }
+
+    // Generate new unique election codes for each voter
+    const usedCodes = new Set<string>();
+    const updates = allVoters.map((voter, index) => {
+      const fullName = `${voter.first_name} ${voter.last_name || ''}`.trim();
+      
+      // Generate a new unique code
+      let newCode: string;
+      let attempts = 0;
+      do {
+        // Generate code based on name + timestamp + random
+        const timestamp = Date.now().toString(36).slice(-4).toUpperCase();
+        const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const namePart = fullName.replace(/\s+/g, '').substring(0, 4).toUpperCase();
+        newCode = `${namePart}${timestamp}${random}`.substring(0, 10);
+        attempts++;
+        
+        // Fallback if we can't generate unique
+        if (attempts > 10) {
+          newCode = `VOTE${Date.now().toString().slice(-6)}${index}`.substring(0, 10);
+        }
+      } while (usedCodes.has(newCode) && attempts < 20);
+      
+      usedCodes.add(newCode);
+      
+      return {
+        id: voter.id,
+        election_code: newCode,
+        voting_start_date: newStartDate,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    // Update all voters with new codes
+    let updatedCount = 0;
+    for (const update of updates) {
+      const { error: updateError } = await supabaseAdmin
+        .from('voters')
+        .update({
+          election_code: update.election_code,
+          voting_start_date: update.voting_start_date,
+          updated_at: update.updated_at,
+        })
+        .eq('id', update.id);
+
+      if (!updateError) {
+        updatedCount++;
+      } else {
+        console.error(`Error updating voter ${update.id}:`, updateError);
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Successfully regenerated election codes. ${count || 0} voter(s) now have a new ${days}-day voting period starting from now.`,
+      message: `Successfully regenerated election codes. ${updatedCount} voter(s) now have new codes and a ${days}-day voting period starting from now.`,
       validity_days: days,
       start_date: newStartDate,
-      voters_updated: count || 0,
+      voters_updated: updatedCount,
     });
   } catch (error) {
     console.error('Regenerate codes error:', error);

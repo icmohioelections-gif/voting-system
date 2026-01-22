@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { isAdminSessionValid } from '@/lib/admin-auth';
+import { isAdminSessionValid, verifyAdminSession } from '@/lib/admin-auth';
 
 // Dynamically import TinyMCE React component to avoid SSR issues
 // Using self-hosted GPL version (no API key needed)
@@ -43,19 +43,13 @@ export default function TemplatesPage() {
       }
       
       try {
-        const res = await fetch('/api/auth/verify-admin', {
-          method: 'GET',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` 
-          }
-        });
-        
-        const data = await res.json();
-        if (!res.ok || !data.valid) {
+        // Verify session with server (same as AdminTabPage)
+        const isValid = await verifyAdminSession(token);
+        if (!isValid) {
           router.replace('/admin/login');
           return;
         }
+        
         setIsAuthenticated(true);
         setChecking(false);
         fetchTemplates();
