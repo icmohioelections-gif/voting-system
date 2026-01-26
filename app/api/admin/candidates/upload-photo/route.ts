@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-// POST - Upload candidate photo to Supabase Storage
+// POST - Upload candidate photo (using base64 data URL for simplicity)
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -31,51 +31,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // Validate file size (max 2MB for base64 storage)
+    const maxSize = 2 * 1024 * 1024; // 2MB (base64 increases size by ~33%)
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'File size too large. Maximum size is 5MB.' },
+        { error: 'File size too large. Maximum size is 2MB. Please compress the image or use a smaller file.' },
         { status: 400 }
       );
     }
 
-    // Generate unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `candidate-${candidateId}-${Date.now()}.${fileExt}`;
-    const filePath = `candidates/${fileName}`;
-
-    // Convert File to ArrayBuffer
+    // Convert file to base64 data URL
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${file.type};base64,${base64}`;
 
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from('candidate-photos')
-      .upload(filePath, buffer, {
-        contentType: file.type,
-        upsert: true,
-      });
-
-    if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      return NextResponse.json(
-        { error: 'Failed to upload photo', details: uploadError.message },
-        { status: 500 }
-      );
-    }
-
-    // Get public URL
-    const { data: urlData } = supabaseAdmin.storage
-      .from('candidate-photos')
-      .getPublicUrl(filePath);
-
-    const photoUrl = urlData.publicUrl;
-
-    // Update candidate with photo URL
+    // Update candidate with photo data URL
     const { error: updateError } = await supabaseAdmin
       .from('candidates')
-      .update({ photo_url: photoUrl, updated_at: new Date().toISOString() })
+      .update({ 
+        photo_url: dataUrl, 
+        updated_at: new Date().toISOString() 
+      })
       .eq('id', candidateId);
 
     if (updateError) {
@@ -88,13 +65,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      photo_url: photoUrl,
+      photo_url: dataUrl,
       message: 'Photo uploaded successfully',
     });
   } catch (error) {
     console.error('Upload photo error:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
+      },
       { status: 500 }
     );
   }
