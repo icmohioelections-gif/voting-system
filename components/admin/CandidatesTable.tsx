@@ -102,6 +102,13 @@ export default function CandidatesTable({ candidates, onUpdate }: CandidatesTabl
   };
 
   const handlePhotoUpload = async (candidateId: string, file: File) => {
+    // Validate file size before upload (2MB limit)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      alert('File size too large. Maximum size is 2MB. Please compress the image or use a smaller file.');
+      return;
+    }
+
     setUploadingPhoto(candidateId);
     try {
       const formData = new FormData();
@@ -117,10 +124,11 @@ export default function CandidatesTable({ candidates, onUpdate }: CandidatesTabl
       if (data.success) {
         onUpdate();
       } else {
-        alert(`Error: ${data.error}`);
+        const errorMsg = data.details ? `${data.error}: ${data.details}` : data.error;
+        alert(`Error: ${errorMsg}`);
       }
     } catch (error) {
-      alert(`Error: ${error instanceof Error ? error.message : 'Failed to upload photo'}`);
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to upload photo. Please try again.'}`);
     } finally {
       setUploadingPhoto(null);
     }
