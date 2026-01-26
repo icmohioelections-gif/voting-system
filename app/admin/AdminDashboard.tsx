@@ -1353,40 +1353,6 @@ DEF456,Bob,`}
                     </div>
                   </div>
 
-                  {/* End Election - Simple Option */}
-                  {electionStatus?.settings?.election_status === 'active' && (
-                    <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
-                        End Election
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-3" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
-                        End the election to prevent all voters from voting. You can restart it by regenerating codes.
-                      </p>
-                      <button
-                        onClick={async () => {
-                          if (!confirm('Are you sure you want to end the election? This will prevent all voters from voting.')) {
-                            return;
-                          }
-                          try {
-                            const res = await fetch('/api/admin/election/end', { method: 'POST' });
-                            const data = await res.json();
-                            if (data.success) {
-                              fetchElectionStatus();
-                              fetchResults();
-                            } else {
-                              alert(`Error: ${data.error}`);
-                            }
-                          } catch (error) {
-                            alert(`Error: ${error instanceof Error ? error.message : 'Failed to end election'}`);
-                          }
-                        }}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
-                        style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
-                      >
-                        End Election
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
 
