@@ -672,7 +672,18 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
 
   const handleTabChange = (tab: 'results' | 'voters' | 'candidates' | 'settings' | 'templates') => {
     setActiveTab(tab);
-    router.push(`/admin/${tab}`);
+    if (tab === 'settings') {
+      router.push('/admin/settings');
+      // Scroll to templates section after a brief delay
+      setTimeout(() => {
+        const templatesSection = document.getElementById('letter-templates-section');
+        if (templatesSection) {
+          templatesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    } else {
+      router.push(`/admin/${tab}`);
+    }
   };
 
   const handleLogout = () => {
@@ -966,8 +977,8 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
                       </svg>
                       Bulk Download Letters
                     </a>
-                    <Link
-                      href="/admin/templates"
+                    <button
+                      onClick={() => handleTabChange('settings')}
                       className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
                       style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
                     >
@@ -975,7 +986,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                       Edit Templates
-                    </Link>
+                    </button>
                   </div>
                 </div>
                 {loading ? (
@@ -1492,7 +1503,7 @@ DEF456,Bob,`}
               <div className="border-t border-gray-200 dark:border-gray-700"></div>
 
               {/* Letter Templates */}
-              <div>
+              <div id="letter-templates-section">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
                   Letter Templates
                 </h2>
