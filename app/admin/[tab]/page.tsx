@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AdminDashboard from '../AdminDashboard';
 import { isAdminSessionValid, verifyAdminSession } from '@/lib/admin-auth';
+import { ErrorBoundary } from '@/components/admin/ErrorBoundary';
 
 export default function AdminTabPage() {
   const params = useParams();
@@ -54,6 +55,10 @@ export default function AdminTabPage() {
   // If no tab or invalid tab, show results by default
   const activeTab = (tab && validTabs.includes(tab)) ? tab : 'results';
 
-  return <AdminDashboard activeTab={activeTab as 'results' | 'voters' | 'candidates' | 'settings'} />;
+  return (
+    <ErrorBoundary>
+      <AdminDashboard activeTab={activeTab as 'results' | 'voters' | 'candidates' | 'settings'} />
+    </ErrorBoundary>
+  );
 }
 

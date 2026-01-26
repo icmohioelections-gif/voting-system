@@ -1524,10 +1524,16 @@ DEF456,Bob,`}
                     </div>
                   ) : (
                     <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
-                      <QuillEditor
-                        value={templateContent}
-                        onChange={setTemplateContent}
-                      />
+                      {typeof window !== 'undefined' ? (
+                        <QuillEditor
+                          value={templateContent}
+                          onChange={setTemplateContent}
+                        />
+                      ) : (
+                        <div className="h-[500px] bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                        </div>
+                      )}
                     </div>
                   )}
 
