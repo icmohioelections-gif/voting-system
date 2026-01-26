@@ -12,6 +12,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import VoterActions from './VoterActions';
+import VotingTimer from './VotingTimer';
 
 interface Voter {
   id: string;
@@ -22,6 +23,8 @@ interface Voter {
   voted_at: string | null;
   is_logged_in: boolean;
   last_login: string | null;
+  voting_start_date: string | null;
+  voting_period_days?: number;
 }
 
 export default function VotersTable({ voters }: { voters: Voter[] }) {
@@ -108,6 +111,19 @@ export default function VotersTable({ voters }: { voters: Voter[] }) {
             <span className="text-sm text-gray-500 dark:text-gray-400">
               {value ? new Date(value).toLocaleString() : '-'}
             </span>
+          );
+        },
+      },
+      {
+        id: 'time_remaining',
+        header: 'Time Remaining',
+        cell: (info) => {
+          const voter = info.row.original;
+          return (
+            <VotingTimer
+              votingStartDate={voter.voting_start_date}
+              votingPeriodDays={voter.voting_period_days || 5}
+            />
           );
         },
       },

@@ -71,10 +71,23 @@ export async function POST(request: NextRequest) {
     // Example using a simple approach (you'll need to set up an email service)
     // For production, use: SendGrid, Resend, AWS SES, or similar
     
+    // Check if email service is configured
+    const emailServiceConfigured = process.env.RESEND_API_KEY || process.env.SENDGRID_API_KEY || process.env.SMTP_HOST;
+    
+    if (!emailServiceConfigured) {
+      return NextResponse.json({
+        success: false,
+        error: 'Email service not configured. Please set up RESEND_API_KEY, SENDGRID_API_KEY, or SMTP credentials in environment variables.',
+        message: 'Email service not configured yet. Please contact your administrator.',
+      }, { status: 503 });
+    }
+
+    // If email service is configured, attempt to send
+    // For now, return success with a note that implementation is needed
     return NextResponse.json({
       success: true,
-      message: `Letter would be sent to ${email}. Email service not configured yet.`,
-      note: 'Please configure an email service (SendGrid, Resend, etc.) to enable email sending.',
+      message: `Email service is configured. Letter would be sent to ${email}.`,
+      note: 'Email sending functionality needs to be implemented with your configured service.',
     });
 
     /* 

@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 // Admin credentials from environment variables
-// IMPORTANT: Set ADMIN_EMAIL and ADMIN_PASSWORD in environment variables for production
-// Default credentials are for development only - CHANGE THEM in production!
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@admin.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+// IMPORTANT: ADMIN_EMAIL and ADMIN_PASSWORD MUST be set in environment variables
+// No default credentials - these MUST be configured for security
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  console.error('⚠️ WARNING: ADMIN_EMAIL and ADMIN_PASSWORD must be set in environment variables!');
+}
 
 // Store admin sessions in memory (for production, use Redis or database)
 const adminSessions = new Map<string, { expiresAt: Date }>();
@@ -22,6 +26,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
+      );
+    }
+
+    // Verify credentials are configured
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      console.error('Admin credentials not configured');
+      return NextResponse.json(
+        { error: 'Admin authentication not configured. Please set ADMIN_EMAIL and ADMIN_PASSWORD environment variables.' },
+        { status: 500 }
       );
     }
 

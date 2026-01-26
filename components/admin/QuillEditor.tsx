@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 // Dynamically import React Quill to avoid SSR issues
@@ -14,6 +15,19 @@ interface QuillEditorProps {
 }
 
 export default function QuillEditor({ value, onChange }: QuillEditorProps) {
+  useEffect(() => {
+    // Ensure CSS is loaded
+    if (typeof window !== 'undefined') {
+      const linkId = 'quill-css';
+      if (!document.getElementById(linkId)) {
+        const link = document.createElement('link');
+        link.id = linkId;
+        link.rel = 'stylesheet';
+        link.href = 'https://cdn.quilljs.com/1.3.6/quill.snow.css';
+        document.head.appendChild(link);
+      }
+    }
+  }, []);
 
   return (
     <ReactQuill

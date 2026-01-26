@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import VotersTable from '@/components/admin/VotersTable';
+import CandidatesTable from '@/components/admin/CandidatesTable';
 import { clearAdminSession } from '@/lib/admin-auth';
 import QuillEditor from '@/components/admin/QuillEditor';
 
@@ -13,6 +14,8 @@ interface Candidate {
   position: string;
   photo_url: string | null;
   description: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Voter {
@@ -24,6 +27,8 @@ interface Voter {
   voted_at: string | null;
   is_logged_in: boolean;
   last_login: string | null;
+  voting_start_date: string | null;
+  voting_period_days?: number;
 }
 
 interface ResultItem {
@@ -108,7 +113,25 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
       const res = await fetch('/api/admin/voters');
       const data = await res.json();
       if (data.voters) {
-        setVoters(data.voters);
+        // Fetch election settings to get voting_period_days
+        try {
+          const settingsRes = await fetch('/api/admin/election/status');
+          const settingsData = await settingsRes.json();
+          const votingPeriodDays = settingsData.settings?.voting_period_days || 5;
+          
+          // Add voting_period_days to each voter
+          const votersWithPeriod = data.voters.map((voter: Voter) => ({
+            ...voter,
+            voting_period_days: votingPeriodDays,
+          }));
+          setVoters(votersWithPeriod);
+        } catch {
+          // If settings fetch fails, use default
+          setVoters(data.voters.map((voter: Voter) => ({
+            ...voter,
+            voting_period_days: 5,
+          })));
+        }
       }
     } catch (err) {
       console.error('Error fetching voters:', err);
@@ -271,7 +294,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
         body: JSON.stringify({
           name: newCandidateName.trim(),
           position: newCandidatePosition.trim(),
-          photo_url: newCandidatePhoto.trim() || null,
+          photo_url: null, // Photo will be uploaded separately
           description: newCandidateDescription.trim() || null,
         }),
       });
@@ -282,7 +305,6 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
         setCandidateMessage(`✓ ${data.message}`);
         setNewCandidateName('');
         setNewCandidatePosition('');
-        setNewCandidatePhoto('');
         setNewCandidateDescription('');
         fetchCandidates();
       } else {
@@ -1032,16 +1054,11 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Photo URL (optional)
+                      Photo (optional - upload after creating candidate)
                     </label>
-                    <input
-                      type="url"
-                      value={newCandidatePhoto}
-                      onChange={(e) => setNewCandidatePhoto(e.target.value)}
-                      placeholder="https://example.com/photo.jpg"
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      disabled={addingCandidate}
-                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      You can upload a photo after creating the candidate using the table below.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1089,44 +1106,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
                     No candidates added yet. Use the form above to add candidates.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {candidates.map((candidate) => (
-                      <div
-                        key={candidate.id}
-                        className="p-6 border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-lg transition-all duration-200 hover:scale-105"
-                      >
-                        <div className="flex flex-col items-center text-center">
-                          {candidate.photo_url ? (
-                            <img
-                              src={candidate.photo_url}
-                              alt={candidate.name}
-                              className="w-24 h-24 rounded-full object-cover mb-4 border-4 border-indigo-100 dark:border-indigo-900/50"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center mb-4 border-4 border-indigo-100 dark:border-indigo-900/50">
-                              <span className="text-3xl font-bold text-white" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
-                                {candidate.name.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                          <div className="font-semibold text-lg text-gray-900 dark:text-white mb-1" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
-                            {candidate.name}
-                          </div>
-                          <div className="text-sm text-indigo-600 dark:text-indigo-400 mb-2" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
-                            {candidate.position}
-                          </div>
-                          {candidate.description && (
-                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-2" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
-                              {candidate.description}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <CandidatesTable candidates={candidates} onUpdate={fetchCandidates} />
                 )}
               </div>
             </div>
