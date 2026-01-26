@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 
-// Dynamically import React Quill to avoid SSR issues
-const ReactQuill = dynamic(() => import('react-quill'), { 
+// Dynamically import React Quill New (React 19 compatible) to avoid SSR issues
+const ReactQuill = dynamic(() => import('react-quill-new'), { 
   ssr: false,
   loading: () => <div className="h-[500px] bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">Loading editor...</div>
 });
@@ -31,6 +31,7 @@ export default function QuillEditor({ value, onChange }: QuillEditorProps) {
         link.id = linkId;
         link.rel = 'stylesheet';
         link.href = 'https://cdn.quilljs.com/1.3.6/quill.snow.css';
+        // react-quill-new uses the same CSS as react-quill
         link.onload = () => setCssLoaded(true);
         link.onerror = () => {
           setError('Failed to load editor styles');
