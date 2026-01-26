@@ -78,10 +78,6 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
   const [regeneratingCodes, setRegeneratingCodes] = useState(false);
   const [regenerateMessage, setRegenerateMessage] = useState('');
   const [validityDays, setValidityDays] = useState('5');
-  const [startingElection, setStartingElection] = useState(false);
-  const [startElectionMessage, setStartElectionMessage] = useState('');
-  const [endingElection, setEndingElection] = useState(false);
-  const [endElectionMessage, setEndElectionMessage] = useState('');
   const [resettingVotes, setResettingVotes] = useState(false);
   const [resetVotesMessage, setResetVotesMessage] = useState('');
   // Templates state
@@ -479,7 +475,20 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
       return;
     }
 
-    if (!confirm(`Are you sure you want to regenerate election codes? This will reset the voting period to ${validityDays} days for all voters.`)) {
+    const currentStatus = electionStatus?.settings?.election_status;
+    const isEnded = currentStatus === 'ended';
+    const isActive = currentStatus === 'active';
+
+    let confirmMessage = `Are you sure you want to regenerate election codes?`;
+    if (isEnded) {
+      confirmMessage += ` This will restart the election and activate voting with a ${validityDays}-day period.`;
+    } else if (isActive) {
+      confirmMessage += ` This will reset the voting period to ${validityDays} days for all voters and restart the election.`;
+    } else {
+      confirmMessage += ` This will start the election and set the voting period to ${validityDays} days for all voters.`;
+    }
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -499,6 +508,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
         setRegenerateMessage(`✓ ${data.message}`);
         fetchElectionStatus();
         fetchVoters();
+        fetchResults();
       } else {
         setRegenerateMessage(`✗ Error: ${data.error}`);
       }
@@ -506,71 +516,6 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
       setRegenerateMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to regenerate codes'}`);
     } finally {
       setRegeneratingCodes(false);
-    }
-  };
-
-  const handleStartElection = async () => {
-    if (!validityDays || parseInt(validityDays) < 1 || parseInt(validityDays) > 365) {
-      setStartElectionMessage('✗ Please enter a valid number of days (1-365)');
-      return;
-    }
-
-    if (!confirm(`Start the election with a ${validityDays}-day voting period?`)) {
-      return;
-    }
-
-    setStartingElection(true);
-    setStartElectionMessage('');
-
-    try {
-      const res = await fetch('/api/admin/election/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ validity_days: parseInt(validityDays) }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setStartElectionMessage(`✓ ${data.message}`);
-        fetchElectionStatus();
-        fetchVoters();
-      } else {
-        setStartElectionMessage(`✗ Error: ${data.error}`);
-      }
-    } catch (error) {
-      setStartElectionMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to start election'}`);
-    } finally {
-      setStartingElection(false);
-    }
-  };
-
-  const handleEndElection = async () => {
-    if (!confirm('Are you sure you want to end the election? This will prevent all voters from voting.')) {
-      return;
-    }
-
-    setEndingElection(true);
-    setEndElectionMessage('');
-
-    try {
-      const res = await fetch('/api/admin/election/end', {
-        method: 'POST',
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setEndElectionMessage(`✓ ${data.message}`);
-        fetchElectionStatus();
-        fetchResults();
-      } else {
-        setEndElectionMessage(`✗ Error: ${data.error}`);
-      }
-    } catch (error) {
-      setEndElectionMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to end election'}`);
-    } finally {
-      setEndingElection(false);
     }
   };
 
@@ -1339,13 +1284,13 @@ DEF456,Bob,`}
                     </div>
                   )}
 
-                  {/* Regenerate Codes */}
+                  {/* Regenerate Codes - Controls Start/End Election */}
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
                       Regenerate Election Codes
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-300 mb-4" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
-                      Generate new election codes for all voters. This will reset the voting period for all voters to the specified number of days starting from now.
+                      Generate new election codes for all voters and start/restart the election. This will activate voting with the specified voting period. The election will automatically start when codes are regenerated.
                     </p>
                     <div className="space-y-4">
                       <div>
@@ -1408,101 +1353,40 @@ DEF456,Bob,`}
                     </div>
                   </div>
 
-                  {/* Start Election */}
-                  <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg border border-green-200 dark:border-green-800">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
-                      Start Election
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
-                      Start the election process. This will activate voting for all eligible voters (those who haven't voted yet) with the specified voting period.
-                    </p>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
-                          Voting Period (Days)
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            min="1"
-                            max="365"
-                            value={validityDays}
-                            onChange={(e) => setValidityDays(e.target.value)}
-                            placeholder="5"
-                            className="w-32 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                            disabled={startingElection}
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setValidityDays('3')}
-                              disabled={startingElection}
-                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
-                            >
-                              3 Days
-                            </button>
-                            <button
-                              onClick={() => setValidityDays('5')}
-                              disabled={startingElection}
-                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
-                            >
-                              5 Days
-                            </button>
-                            <button
-                              onClick={() => setValidityDays('7')}
-                              disabled={startingElection}
-                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
-                            >
-                              7 Days
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                  {/* End Election - Simple Option */}
+                  {electionStatus?.settings?.election_status === 'active' && (
+                    <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                        End Election
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-3" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                        End the election to prevent all voters from voting. You can restart it by regenerating codes.
+                      </p>
                       <button
-                        onClick={handleStartElection}
-                        disabled={startingElection || (electionStatus?.settings?.election_status === 'active')}
-                        className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        onClick={async () => {
+                          if (!confirm('Are you sure you want to end the election? This will prevent all voters from voting.')) {
+                            return;
+                          }
+                          try {
+                            const res = await fetch('/api/admin/election/end', { method: 'POST' });
+                            const data = await res.json();
+                            if (data.success) {
+                              fetchElectionStatus();
+                              fetchResults();
+                            } else {
+                              alert(`Error: ${data.error}`);
+                            }
+                          } catch (error) {
+                            alert(`Error: ${error instanceof Error ? error.message : 'Failed to end election'}`);
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
                         style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
                       >
-                        {startingElection ? 'Starting...' : 'Start Election'}
+                        End Election
                       </button>
-                      {startElectionMessage && (
-                        <div className={`p-4 rounded-lg whitespace-pre-wrap ${
-                          startElectionMessage.startsWith('✓') 
-                            ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
-                            : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
-                        }`}>
-                          <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{startElectionMessage}</p>
-                        </div>
-                      )}
                     </div>
-                  </div>
-
-                  {/* End Election */}
-                  <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg border border-red-200 dark:border-red-800">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
-                      End Election
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
-                      End the election process. This will prevent all voters from voting and mark the election as completed.
-                    </p>
-                    <button
-                      onClick={handleEndElection}
-                      disabled={endingElection || (electionStatus?.settings?.election_status === 'ended')}
-                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                      style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
-                    >
-                      {endingElection ? 'Ending...' : 'End Election'}
-                    </button>
-                    {endElectionMessage && (
-                      <div className={`mt-4 p-4 rounded-lg whitespace-pre-wrap ${
-                        endElectionMessage.startsWith('✓') 
-                          ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300' 
-                          : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
-                      }`}>
-                        <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{endElectionMessage}</p>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
 

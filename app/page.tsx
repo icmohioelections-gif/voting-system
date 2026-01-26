@@ -1,40 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import CandidateCard from '@/components/CandidateCard';
-import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Vote, CheckCircle2, ArrowRight } from 'lucide-react';
-
-interface Candidate {
-  id: string;
-  name: string;
-  position: string;
-  photo_url: string | null;
-  description: string | null;
-}
+import { ShieldCheck, Vote, CheckCircle2 } from 'lucide-react';
 
 export default function Home() {
-  const [mounted, setMounted] = useState(false);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setMounted(true);
-    // Fetch candidates
-    fetch('/api/candidates')
-      .then(res => res.json())
-      .then(data => {
-        if (data.candidates) {
-          setCandidates(data.candidates);
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Error fetching candidates:', err);
-        setLoading(false);
-      });
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -89,57 +59,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Candidates Section */}
-      {candidates.length > 0 && (
-        <section className="py-20 px-4">
-          <div className="container mx-auto max-w-7xl">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="text-center mb-12"
-            >
-              <h2 
-                className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4"
-                style={{ fontFamily: 'var(--font-anton), sans-serif' }}
-              >
-                MEET THE CANDIDATES
-              </h2>
-              <p 
-                className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto"
-                style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
-              >
-                Review the candidates running in this election. Click "Vote Now" above to cast your ballot.
-              </p>
-            </motion.div>
-
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
-              </div>
-            ) : (
-              <div className={`grid gap-8 ${
-                candidates.length === 1 
-                  ? 'grid-cols-1 max-w-md mx-auto' 
-                  : candidates.length === 2
-                  ? 'grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto'
-                  : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-              }`}>
-                {candidates.map((candidate, index) => (
-                  <motion.div
-                    key={candidate.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
-                  >
-                    <CandidateCard candidate={candidate} interactive={false} />
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
 
       {/* Feature Grid */}
       <section className="py-20 bg-white/50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
