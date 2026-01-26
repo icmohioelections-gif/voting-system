@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Logo from '@/components/Logo';
 import { motion } from 'framer-motion';
 import { Lock, Loader2 } from 'lucide-react';
+import { setAdminSessionToken } from '@/lib/admin-session';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -31,14 +32,14 @@ export default function AdminLoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Store admin session token
-      sessionStorage.setItem('admin_session_token', data.session_token);
-      sessionStorage.setItem('admin_session_expires', data.expires_at);
+      // Store admin session token using robust session manager
+      setAdminSessionToken(data.session_token, data.expires_at);
       
-      // Clear any voter session
+      // Clear any voter session (but preserve admin session)
       sessionStorage.removeItem('voter_id');
       sessionStorage.removeItem('election_code');
       sessionStorage.removeItem('session_token');
+      sessionStorage.removeItem('session_expiry');
 
       router.push('/admin/results');
     } catch (err) {

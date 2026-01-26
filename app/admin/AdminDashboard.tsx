@@ -576,6 +576,7 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
 
   useEffect(() => {
     // Force logout any voter sessions when accessing admin
+    // IMPORTANT: Only clear voter session, NOT admin session
     const voterId = sessionStorage.getItem('voter_id');
     if (voterId) {
       fetch('/api/auth/logout', {
@@ -583,7 +584,13 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ voter_id: voterId }),
       }).then(() => {
-        sessionStorage.clear();
+        // Only clear voter-related items, preserve admin session
+        sessionStorage.removeItem('voter_id');
+        sessionStorage.removeItem('election_code');
+        sessionStorage.removeItem('voter_first_name');
+        sessionStorage.removeItem('voter_last_name');
+        sessionStorage.removeItem('session_token');
+        sessionStorage.removeItem('session_expiry');
       }).catch(() => {});
     }
 

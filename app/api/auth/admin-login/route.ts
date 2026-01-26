@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       success: true,
       session_token: sessionToken,
       expires_at: expiresAt.toISOString(),
+      message: 'Login successful',
     });
   } catch (error) {
     console.error('Admin login error:', error);

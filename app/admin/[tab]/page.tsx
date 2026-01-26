@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AdminDashboard from '../AdminDashboard';
-import { isAdminSessionValid, verifyAdminSession } from '@/lib/admin-auth';
+import { adminSession } from '@/lib/admin-session';
 import { ErrorBoundary } from '@/components/admin/ErrorBoundary';
 
 export default function AdminTabPage() {
@@ -12,28 +12,56 @@ export default function AdminTabPage() {
   const tab = params?.tab as string;
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checking, setChecking] = useState(true);
+  const authCheckRef = useRef(false);
+  const authCheckInProgress = useRef(false);
 
   // Valid tabs
   const validTabs = ['results', 'voters', 'candidates', 'settings'];
   
   useEffect(() => {
+    // Prevent multiple simultaneous auth checks
+    if (authCheckInProgress.current) return;
+    
     // Check admin authentication
     const checkAuth = async () => {
-      const token = sessionStorage.getItem('admin_session_token');
-      if (!token || !isAdminSessionValid()) {
-        router.replace('/admin/login');
-        return;
-      }
+      authCheckInProgress.current = true;
       
-      // Verify session with server
-      const isValid = await verifyAdminSession(token);
-      if (!isValid) {
-        router.replace('/admin/login');
-        return;
+      try {
+        // Quick client-side check first
+        if (!adminSession.hasValidToken()) {
+          router.replace('/admin/login');
+          return;
+        }
+        
+        // If already authenticated and recently verified, skip server check
+        if (isAuthenticated && authCheckRef.current) {
+          authCheckInProgress.current = false;
+          return;
+        }
+        
+        // Verify session with server (with caching)
+        const isValid = await adminSession.verifySession();
+        
+        if (!isValid) {
+          router.replace('/admin/login');
+          return;
+        }
+        
+        setIsAuthenticated(true);
+        setChecking(false);
+        authCheckRef.current = true;
+      } catch (error) {
+        console.error('Auth check error:', error);
+        // On error, if we have a valid token, allow access (fail open for better UX)
+        if (adminSession.hasValidToken()) {
+          setIsAuthenticated(true);
+          setChecking(false);
+        } else {
+          router.replace('/admin/login');
+        }
+      } finally {
+        authCheckInProgress.current = false;
       }
-      
-      setIsAuthenticated(true);
-      setChecking(false);
     };
 
     checkAuth();
@@ -42,7 +70,7 @@ export default function AdminTabPage() {
     if (tab && !validTabs.includes(tab)) {
       router.replace('/admin/results');
     }
-  }, [tab, router]);
+  }, [tab, router, isAuthenticated]);
 
   if (checking || !isAuthenticated) {
     return (
