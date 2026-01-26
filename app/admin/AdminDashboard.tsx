@@ -1284,7 +1284,7 @@ DEF456,Bob,`}
                     </div>
                   )}
 
-                  {/* Regenerate Codes - Controls Start/End Election */}
+                  {/* Regenerate Codes - Starts/Restarts Election */}
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
                       Regenerate Election Codes
