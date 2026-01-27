@@ -4,17 +4,16 @@ import { createSession } from '@/lib/sessions';
 
 export async function POST(request: NextRequest) {
   try {
-    const { election_code, name } = await request.json();
+    const { election_code } = await request.json();
 
-    if (!election_code || !name) {
+    if (!election_code) {
       return NextResponse.json(
-        { error: 'Election code and name are required' },
+        { error: 'Election code is required' },
         { status: 400 }
       );
     }
 
     const trimmedCode = election_code.trim();
-    const trimmedName = name.trim().toLowerCase();
 
     // Fetch voter by election code
     const { data: voter, error } = await supabaseAdmin
@@ -66,16 +65,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify name matches (check first_name OR last_name)
-    const firstNameMatch = voter.first_name.toLowerCase() === trimmedName;
-    const lastNameMatch = voter.last_name?.toLowerCase() === trimmedName;
-
-    if (!firstNameMatch && !lastNameMatch) {
-      return NextResponse.json(
-        { error: 'Name does not match election code' },
-        { status: 401 }
-      );
-    }
+    // No name verification needed - election code is sufficient
 
     // Create session
     const sessionToken = await createSession(voter.id, voter.election_code);

@@ -6,7 +6,6 @@ import Link from 'next/link';
 
 export default function LoginPage() {
   const [electionCode, setElectionCode] = useState('');
-  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -22,7 +21,6 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           election_code: electionCode.trim(),
-          name: name.trim(),
         }),
       });
 
@@ -71,7 +69,7 @@ export default function LoginPage() {
           Online Voting Login
         </h1>
         <p className="text-center text-gray-600 dark:text-gray-300 mb-8" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
-          Enter your election code and name to vote
+          Enter your election code to vote
         </p>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -90,27 +88,6 @@ export default function LoginPage() {
               onChange={(e) => setElectionCode(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               placeholder="Enter your election code"
-              style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
-            >
-              First Name or Last Name
-            </label>
-            <input
-              id="name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="Enter your first name or last name"
               style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
               required
               disabled={loading}

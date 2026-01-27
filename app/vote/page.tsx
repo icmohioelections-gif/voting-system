@@ -138,9 +138,16 @@ export default function VotePage() {
         throw new Error(data.error || 'Vote submission failed');
       }
 
+      // Store candidate info for confirmation page
+      if (data.candidate) {
+        sessionStorage.setItem('voted_candidate_name', data.candidate.name);
+        sessionStorage.setItem('voted_candidate_position', data.candidate.position);
+      }
+
       // Clear session and redirect to confirmation
       sessionStorage.removeItem('voter_id');
       sessionStorage.removeItem('election_code');
+      sessionStorage.removeItem('session_token');
       router.push('/confirmation');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit vote');

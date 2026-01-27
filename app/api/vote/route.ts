@@ -147,6 +147,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Vote recorded successfully',
+      candidate: {
+        id: candidate.id,
+        name: candidate.name,
+        position: candidate.position,
+      },
     });
   } catch (error) {
     console.error('Vote submission error:', error);
