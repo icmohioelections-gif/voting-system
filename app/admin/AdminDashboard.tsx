@@ -78,6 +78,9 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
   const [regeneratingCodes, setRegeneratingCodes] = useState(false);
   const [regenerateMessage, setRegenerateMessage] = useState('');
   const [validityDays, setValidityDays] = useState('5');
+  const [extendingValidity, setExtendingValidity] = useState(false);
+  const [extendValidityMessage, setExtendValidityMessage] = useState('');
+  const [extendAddDays, setExtendAddDays] = useState('5');
   const [resettingVotes, setResettingVotes] = useState(false);
   const [resetVotesMessage, setResetVotesMessage] = useState('');
   // Templates state
@@ -516,6 +519,40 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
       setRegenerateMessage(`✗ Error: ${error instanceof Error ? error.message : 'Failed to regenerate codes'}`);
     } finally {
       setRegeneratingCodes(false);
+    }
+  };
+
+  const handleExtendValidity = async () => {
+    const days = parseInt(extendAddDays, 10);
+    if (isNaN(days) || days < 1 || days > 365) {
+      setExtendValidityMessage('✗ Please enter a valid number of days (1-365)');
+      return;
+    }
+    const currentDays = electionStatus?.settings?.voting_period_days || 5;
+    const newTotal = currentDays + days;
+    if (!confirm(`Add ${days} more days to the voting period? Validity will go from ${currentDays} to ${newTotal} days. Codes that had expired will work again.`)) {
+      return;
+    }
+    setExtendingValidity(true);
+    setExtendValidityMessage('');
+    try {
+      const res = await fetch('/api/admin/election/extend-validity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ add_days: days }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setExtendValidityMessage(`✓ ${data.message}`);
+        fetchElectionStatus();
+        fetchVoters();
+      } else {
+        setExtendValidityMessage(`✗ ${data.error || 'Failed to extend validity'}`);
+      }
+    } catch (error) {
+      setExtendValidityMessage(`✗ ${error instanceof Error ? error.message : 'Failed to extend validity'}`);
+    } finally {
+      setExtendingValidity(false);
     }
   };
 
@@ -1281,6 +1318,70 @@ DEF456,Bob,`}
                           </>
                         )}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Extend code validity - only when election is active */}
+                  {electionStatus?.settings?.election_status === 'active' && (
+                    <div className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-lg border border-amber-200 dark:border-amber-800">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                        Extend Code Validity
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                        Add more days to the voting period without regenerating codes. Use this when codes have expired (e.g. after 5 days) and the Board wants to extend the process. Current period: <strong>{electionStatus.settings?.voting_period_days || 5} days</strong>.
+                      </p>
+                      <div className="flex flex-wrap items-end gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                            Add days
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max="365"
+                              value={extendAddDays}
+                              onChange={(e) => setExtendAddDays(e.target.value)}
+                              placeholder="5"
+                              className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                              disabled={extendingValidity}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setExtendAddDays('5')}
+                              disabled={extendingValidity}
+                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              +5
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setExtendAddDays('7')}
+                              disabled={extendingValidity}
+                              className="px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              +7
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleExtendValidity}
+                          disabled={extendingValidity}
+                          className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                        >
+                          {extendingValidity ? 'Extending...' : 'Extend Validity'}
+                        </button>
+                      </div>
+                      {extendValidityMessage && (
+                        <div className={`mt-4 p-4 rounded-lg whitespace-pre-wrap ${
+                          extendValidityMessage.startsWith('✓')
+                            ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+                            : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                        }`}>
+                          <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{extendValidityMessage}</p>
+                        </div>
+                      )}
                     </div>
                   )}
 
