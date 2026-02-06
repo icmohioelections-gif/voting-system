@@ -81,6 +81,8 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
   const [extendingValidity, setExtendingValidity] = useState(false);
   const [extendValidityMessage, setExtendValidityMessage] = useState('');
   const [extendAddDays, setExtendAddDays] = useState('5');
+  const [endingElection, setEndingElection] = useState(false);
+  const [endElectionMessage, setEndElectionMessage] = useState('');
   const [resettingVotes, setResettingVotes] = useState(false);
   const [resetVotesMessage, setResetVotesMessage] = useState('');
   // Templates state
@@ -553,6 +555,30 @@ export default function AdminDashboard({ activeTab: initialTab = 'results' }: { 
       setExtendValidityMessage(`✗ ${error instanceof Error ? error.message : 'Failed to extend validity'}`);
     } finally {
       setExtendingValidity(false);
+    }
+  };
+
+  const handleEndElection = async () => {
+    if (!confirm('Are you sure you want to end the election? No one will be able to vote after this. You can start again by regenerating codes.')) {
+      return;
+    }
+    setEndingElection(true);
+    setEndElectionMessage('');
+    try {
+      const res = await fetch('/api/admin/election/end', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setEndElectionMessage(`✓ ${data.message}`);
+        fetchElectionStatus();
+        fetchVoters();
+        fetchResults();
+      } else {
+        setEndElectionMessage(`✗ ${data.error || 'Failed to end election'}`);
+      }
+    } catch (error) {
+      setEndElectionMessage(`✗ ${error instanceof Error ? error.message : 'Failed to end election'}`);
+    } finally {
+      setEndingElection(false);
     }
   };
 
@@ -1380,6 +1406,35 @@ DEF456,Bob,`}
                             : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
                         }`}>
                           <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{extendValidityMessage}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* End Election - only when election is active */}
+                  {electionStatus?.settings?.election_status === 'active' && (
+                    <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg border border-red-200 dark:border-red-800">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3" style={{ fontFamily: 'var(--font-anton), sans-serif' }}>
+                        End Election
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>
+                        Stop the election. After ending, no one will be able to vote. You can start a new election later by regenerating codes.
+                      </p>
+                      <button
+                        onClick={handleEndElection}
+                        disabled={endingElection}
+                        className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}
+                      >
+                        {endingElection ? 'Ending...' : 'End Election'}
+                      </button>
+                      {endElectionMessage && (
+                        <div className={`mt-4 p-4 rounded-lg whitespace-pre-wrap ${
+                          endElectionMessage.startsWith('✓')
+                            ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+                            : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300'
+                        }`}>
+                          <p className="text-sm" style={{ fontFamily: 'var(--font-alexandria), sans-serif' }}>{endElectionMessage}</p>
                         </div>
                       )}
                     </div>
